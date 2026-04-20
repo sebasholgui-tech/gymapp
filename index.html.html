@@ -120,16 +120,24 @@
       <button class="auth-tab" onclick="switchAuthTab('register')">Registrarse</button>
     </div>
     <div id="auth-error" class="auth-error"></div>
+    <div id="auth-success" style="font-size:13px;color:#085041;background:#E1F5EE;padding:8px 12px;border-radius:8px;margin-bottom:12px;display:none"></div>
     <div id="login-form">
       <div class="form-group"><label class="form-label">Email</label><input class="form-input" type="email" id="login-email" placeholder="tu@email.com"></div>
-      <div class="form-group"><label class="form-label">Contraseña</label><input class="form-input" type="password" id="login-pass" placeholder="••••••••"></div>
+      <div class="form-group"><label class="form-label">Contrasena</label><input class="form-input" type="password" id="login-pass" placeholder=""></div>
       <button class="btn-main" onclick="doLogin()">Entrar</button>
+      <div style="text-align:center;margin-top:12px"><button onclick="switchAuthTab('recovery')" style="background:none;border:none;font-size:13px;color:#7F77DD;cursor:pointer;font-family:inherit">Olvidaste tu contrasena?</button></div>
     </div>
     <div id="register-form" class="hidden">
-      <div class="form-group"><label class="form-label">Nombre completo</label><input class="form-input" type="text" id="reg-name" placeholder="Ana García"></div>
+      <div class="form-group"><label class="form-label">Nombre completo</label><input class="form-input" type="text" id="reg-name" placeholder="Ana Garcia"></div>
       <div class="form-group"><label class="form-label">Email</label><input class="form-input" type="email" id="reg-email" placeholder="tu@email.com"></div>
-      <div class="form-group"><label class="form-label">Contraseña</label><input class="form-input" type="password" id="reg-pass" placeholder="mínimo 6 caracteres"></div>
+      <div class="form-group"><label class="form-label">Contrasena</label><input class="form-input" type="password" id="reg-pass" placeholder="minimo 6 caracteres"></div>
       <button class="btn-main" onclick="doRegister()">Crear cuenta</button>
+    </div>
+    <div id="recovery-form" class="hidden">
+      <div style="font-size:13px;color:#888;margin-bottom:14px">Te enviaremos un enlace para restablecer tu contrasena.</div>
+      <div class="form-group"><label class="form-label">Tu email</label><input class="form-input" type="email" id="recovery-email" placeholder="tu@email.com"></div>
+      <button class="btn-main" onclick="doRecovery()">Enviar enlace</button>
+      <div style="text-align:center;margin-top:12px"><button onclick="switchAuthTab('login')" style="background:none;border:none;font-size:13px;color:#888;cursor:pointer;font-family:inherit">Volver al inicio</button></div>
     </div>
   </div>
 </div>
@@ -241,13 +249,32 @@ function switchAuthTab(tab) {
   document.querySelectorAll('.auth-tab').forEach((t,i)=>t.classList.toggle('active', (i===0&&tab==='login')||(i===1&&tab==='register')));
   document.getElementById('login-form').classList.toggle('hidden', tab!=='login');
   document.getElementById('register-form').classList.toggle('hidden', tab!=='register');
+  document.getElementById('recovery-form').classList.toggle('hidden', tab!=='recovery');
   document.getElementById('auth-error').style.display='none';
+  document.getElementById('auth-success').style.display='none';
 }
 
 function showError(msg) {
   const el = document.getElementById('auth-error');
   el.textContent = msg;
   el.style.display = 'block';
+}
+
+function showSuccess(msg) {
+  const el = document.getElementById('auth-success');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+async function doRecovery() {
+  const email = document.getElementById('recovery-email').value.trim();
+  if (!email) return showError('Introduce tu email');
+  const {error} = await db.auth.resetPasswordForEmail(email, {
+    redirectTo: 'https://gymapp-avsdphsnj-sebasholgui-7724s-projects.vercel.app'
+  });
+  if (error) return showError('Error al enviar el email');
+  document.getElementById('auth-error').style.display='none';
+  showSuccess('Te hemos enviado un enlace a tu email. Revisa tu bandeja de entrada.');
 }
 
 async function doLogin() {
