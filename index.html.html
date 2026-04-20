@@ -142,6 +142,19 @@
   </div>
 </div>
 
+<!-- RESET PASSWORD SCREEN -->
+<div id="reset-screen" class="auth-wrap hidden">
+  <div class="auth-box">
+    <div class="auth-logo">GymApp</div>
+    <div class="auth-sub">Nueva contrasena</div>
+    <div id="reset-error" class="auth-error"></div>
+    <div id="reset-success" style="font-size:13px;color:#085041;background:#E1F5EE;padding:8px 12px;border-radius:8px;margin-bottom:12px;display:none"></div>
+    <div class="form-group"><label class="form-label">Nueva contrasena</label><input class="form-input" type="password" id="new-pass" placeholder="minimo 6 caracteres"></div>
+    <div class="form-group"><label class="form-label">Repetir contrasena</label><input class="form-input" type="password" id="new-pass2" placeholder="repite la contrasena"></div>
+    <button class="btn-main" onclick="doResetPassword()">Guardar nueva contrasena</button>
+  </div>
+</div>
+
 <!-- APP -->
 <div id="app-screen" class="hidden">
   <div class="app-wrap">
@@ -551,9 +564,34 @@ function formatTime(ts) {
   return new Date(ts).toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'});
 }
 
+async function doResetPassword() {
+  const pass1 = document.getElementById('new-pass').value;
+  const pass2 = document.getElementById('new-pass2').value;
+  const errEl = document.getElementById('reset-error');
+  const okEl = document.getElementById('reset-success');
+  errEl.style.display='none';
+  if (!pass1 || pass1.length < 6) { errEl.textContent='Minimo 6 caracteres'; errEl.style.display='block'; return; }
+  if (pass1 !== pass2) { errEl.textContent='Las contrasenas no coinciden'; errEl.style.display='block'; return; }
+  const {error} = await db.auth.updateUser({password: pass1});
+  if (error) { errEl.textContent='Error al cambiar la contrasena'; errEl.style.display='block'; return; }
+  okEl.textContent='Contrasena cambiada. Redirigiendo...';
+  okEl.style.display='block';
+  setTimeout(async () => {
+    await db.auth.signOut();
+    document.getElementById('reset-screen').classList.add('hidden');
+    document.getElementById('auth-screen').classList.remove('hidden');
+  }, 2000);
+}
+
 db.auth.onAuthStateChange((event, session) => {
-  if (session?.user) initApp(session.user);
-  else {
+  if (event === 'PASSWORD_RECOVERY') {
+    document.getElementById('auth-screen').classList.add('hidden');
+    document.getElementById('app-screen').classList.add('hidden');
+    document.getElementById('reset-screen').classList.remove('hidden');
+  } else if (session?.user && event !== 'PASSWORD_RECOVERY') {
+    document.getElementById('reset-screen').classList.add('hidden');
+    initApp(session.user);
+  } else {
     document.getElementById('auth-screen').classList.remove('hidden');
     document.getElementById('app-screen').classList.add('hidden');
   }
