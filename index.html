@@ -283,7 +283,7 @@ async function doRecovery() {
   const email = document.getElementById('recovery-email').value.trim();
   if (!email) return showError('Introduce tu email');
   const {error} = await db.auth.resetPasswordForEmail(email, {
-    redirectTo: 'https://gymapp-avsdphsnj-sebasholgui-7724s-projects.vercel.app/reset.html'
+    redirectTo: 'https://gymapp-smoky-pi.vercel.app/reset'
   });
   if (error) return showError('Error al enviar el email');
   document.getElementById('auth-error').style.display='none';
