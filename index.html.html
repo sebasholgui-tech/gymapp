@@ -583,36 +583,27 @@ async function doResetPassword() {
   }, 2000);
 }
 
-function checkRecoveryToken() {
-  const hash = window.location.hash;
-  if (hash && hash.includes('type=recovery')) {
-    document.getElementById('auth-screen').classList.add('hidden');
-    document.getElementById('app-screen').classList.add('hidden');
-    document.getElementById('reset-screen').classList.remove('hidden');
-    return true;
-  }
-  return false;
-}
-
 db.auth.onAuthStateChange((event, session) => {
   if (event === 'PASSWORD_RECOVERY') {
     document.getElementById('auth-screen').classList.add('hidden');
     document.getElementById('app-screen').classList.add('hidden');
     document.getElementById('reset-screen').classList.remove('hidden');
-  } else if (session?.user) {
-    if (!checkRecoveryToken()) {
+  } else if (event === 'SIGNED_IN') {
+    const hash = window.location.hash;
+    if (hash && hash.includes('type=recovery')) {
+      document.getElementById('auth-screen').classList.add('hidden');
+      document.getElementById('app-screen').classList.add('hidden');
+      document.getElementById('reset-screen').classList.remove('hidden');
+    } else {
       document.getElementById('reset-screen').classList.add('hidden');
       initApp(session.user);
     }
-  } else {
-    if (!checkRecoveryToken()) {
-      document.getElementById('auth-screen').classList.remove('hidden');
-      document.getElementById('app-screen').classList.add('hidden');
-    }
+  } else if (!session) {
+    document.getElementById('auth-screen').classList.remove('hidden');
+    document.getElementById('app-screen').classList.add('hidden');
+    document.getElementById('reset-screen').classList.add('hidden');
   }
 });
-
-checkRecoveryToken();
 </script>
 </body>
 </html>
