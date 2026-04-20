@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GymApp</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f4f0;min-height:100vh;color:#1a1a1a}
+  .hidden{display:none!important}
+
+  /* AUTH */
+  .auth-wrap{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:1rem}
+  .auth-box{background:#fff;border-radius:16px;padding:2rem;width:100%;max-width:380px;border:1px solid #eee}
+  .auth-logo{font-size:28px;font-weight:700;color:#7F77DD;margin-bottom:4px}
+  .auth-sub{font-size:14px;color:#888;margin-bottom:1.5rem}
+  .auth-tabs{display:flex;gap:0;border:1px solid #eee;border-radius:8px;overflow:hidden;margin-bottom:1.5rem}
+  .auth-tab{flex:1;padding:8px;font-size:13px;cursor:pointer;background:transparent;border:none;color:#888;font-family:inherit}
+  .auth-tab.active{background:#f5f4f0;color:#1a1a1a;font-weight:500}
+  .form-group{margin-bottom:12px}
+  .form-label{font-size:12px;color:#888;margin-bottom:4px;display:block}
+  .form-input{width:100%;border:1px solid #ddd;border-radius:8px;padding:10px 12px;font-size:14px;outline:none;font-family:inherit;color:#1a1a1a;background:#fff}
+  .form-input:focus{border-color:#7F77DD}
+  .btn-main{width:100%;background:#7F77DD;border:none;border-radius:8px;padding:11px;font-size:14px;font-weight:600;color:#fff;cursor:pointer;font-family:inherit;margin-top:4px}
+  .btn-main:hover{background:#534AB7}
+  .auth-error{font-size:13px;color:#A32D2D;background:#FCEBEB;padding:8px 12px;border-radius:8px;margin-bottom:12px;display:none}
+
+  /* APP */
+  .app-wrap{max-width:600px;margin:0 auto;padding:1rem}
+  .app-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;padding:1rem;background:#fff;border-radius:12px;border:1px solid #eee}
+  .app-logo{font-size:18px;font-weight:700;color:#7F77DD}
+  .app-user{font-size:13px;color:#888}
+  .btn-logout{background:none;border:1px solid #eee;border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer;color:#888;font-family:inherit}
+  .btn-logout:hover{background:#f5f4f0}
+
+  /* NAV */
+  .nav{display:flex;gap:0;border:1px solid #eee;border-radius:10px;overflow:hidden;margin-bottom:1.5rem;background:#fff}
+  .nav-btn{flex:1;padding:10px 6px;font-size:12px;cursor:pointer;background:transparent;border:none;color:#888;font-family:inherit;font-weight:500}
+  .nav-btn.active{background:#7F77DD;color:#fff}
+
+  /* SCREENS */
+  .screen{display:none}.screen.show{display:block}
+
+  /* STATS */
+  .stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:1.25rem}
+  .stat-card{background:#fff;border-radius:10px;padding:14px;border:1px solid #eee;text-align:center}
+  .stat-label{font-size:11px;color:#999;margin-bottom:4px}
+  .stat-value{font-size:24px;font-weight:700;color:#1a1a1a}
+
+  /* CARDS */
+  .card{background:#fff;border:1px solid #eee;border-radius:12px;margin-bottom:10px;overflow:hidden}
+  .card-body{padding:14px 16px}
+  .card-row{display:flex;align-items:center;gap:12px;padding:12px 16px}
+  .avatar{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;flex-shrink:0;background:#EEEDFE;color:#3C3489}
+  .person-name{font-size:14px;font-weight:600}
+  .person-sub{font-size:12px;color:#888;margin-top:1px}
+
+  /* RANKING */
+  .rank-num{font-size:18px;font-weight:700;width:30px;text-align:center;color:#888}
+  .rank-num.g{color:#BA7517}
+  .rank-num.s{color:#888780}
+  .rank-num.b{color:#993C1D}
+  .visits-badge{font-size:13px;font-weight:600;color:#1a1a1a;white-space:nowrap}
+  .bar-wrap{flex:1;background:#f0f0f0;border-radius:4px;height:5px;overflow:hidden;margin:0 8px}
+  .bar-fill{height:5px;border-radius:4px;background:#7F77DD}
+
+  /* CLASES */
+  .clase-header{display:flex;align-items:center;gap:12px;padding:14px 16px}
+  .clase-stripe{width:4px;height:40px;border-radius:2px;flex-shrink:0}
+  .clase-name{font-size:15px;font-weight:600}
+  .clase-meta{font-size:12px;color:#888;margin-top:2px}
+  .clase-plazas{font-size:12px;color:#888;text-align:right;white-space:nowrap}
+  .clase-plazas span{display:block;font-size:18px;font-weight:700;color:#1a1a1a}
+  .btn-reservar{border:1px solid #ddd;border-radius:8px;padding:7px 14px;font-size:12px;cursor:pointer;background:transparent;color:#1a1a1a;font-family:inherit;white-space:nowrap;font-weight:500}
+  .btn-reservar:hover{background:#f5f4f0}
+  .btn-reservar.reservado{background:#E1F5EE;border-color:#5DCAA5;color:#085041}
+  .btn-reservar.lleno{background:#f5f4f0;color:#bbb;cursor:not-allowed;border-color:#eee}
+  .badge-lleno{font-size:11px;background:#FCEBEB;color:#A32D2D;padding:2px 8px;border-radius:20px;font-weight:500}
+
+  /* CHECKIN */
+  .checkin-big{width:100%;background:#7F77DD;border:none;border-radius:12px;padding:18px;font-size:16px;font-weight:700;color:#fff;cursor:pointer;font-family:inherit;margin-bottom:1.25rem;letter-spacing:.01em}
+  .checkin-big:hover{background:#534AB7}
+  .checkin-big:active{transform:scale(.98)}
+
+  /* ADMIN */
+  .section-title{font-size:12px;font-weight:600;color:#999;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;margin-top:1.25rem}
+  .btn-add{border:1.5px dashed #ddd;border-radius:12px;padding:14px;text-align:center;font-size:13px;color:#aaa;cursor:pointer;background:transparent;width:100%;font-family:inherit;margin-bottom:10px}
+  .btn-add:hover{background:#f5f4f0}
+
+  /* MODAL */
+  .modal-bg{display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.4);min-height:400px;border-radius:12px;margin-bottom:1rem}
+  .modal-bg.open{display:flex}
+  .modal-box{background:#fff;border-radius:16px;padding:24px;width:320px;border:1px solid #eee}
+  .modal-title{font-size:16px;font-weight:600;margin-bottom:16px}
+  .modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+  .btn-cancel{background:none;border:1px solid #ddd;border-radius:8px;padding:8px 14px;font-size:13px;cursor:pointer;color:#888;font-family:inherit}
+  .btn-save{background:#7F77DD;border:none;border-radius:8px;padding:8px 14px;font-size:13px;cursor:pointer;color:#fff;font-weight:600;font-family:inherit}
+
+  /* TOAST */
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1a1a1a;color:#fff;padding:10px 20px;border-radius:10px;font-size:13px;font-weight:500;display:none;z-index:999;white-space:nowrap}
+  .toast.show{display:block}
+
+  .color-opts{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+  .color-opt{width:26px;height:26px;border-radius:50%;cursor:pointer;border:3px solid transparent}
+  .color-opt.sel{border-color:#1a1a1a}
+
+  .me-chip{font-size:11px;background:#E1F5EE;color:#085041;padding:2px 8px;border-radius:20px;margin-left:6px;font-weight:500}
+</style>
+</head>
+<body>
+
+<!-- AUTH -->
+<div id="auth-screen" class="auth-wrap">
+  <div class="auth-box">
+    <div class="auth-logo">GymApp</div>
+    <div class="auth-sub">Gestión de tu gimnasio</div>
+    <div class="auth-tabs">
+      <button class="auth-tab active" onclick="switchAuthTab('login')">Entrar</button>
+      <button class="auth-tab" onclick="switchAuthTab('register')">Registrarse</button>
+    </div>
+    <div id="auth-error" class="auth-error"></div>
+    <div id="login-form">
+      <div class="form-group"><label class="form-label">Email</label><input class="form-input" type="email" id="login-email" placeholder="tu@email.com"></div>
+      <div class="form-group"><label class="form-label">Contraseña</label><input class="form-input" type="password" id="login-pass" placeholder="••••••••"></div>
+      <button class="btn-main" onclick="doLogin()">Entrar</button>
+    </div>
+    <div id="register-form" class="hidden">
+      <div class="form-group"><label class="form-label">Nombre completo</label><input class="form-input" type="text" id="reg-name" placeholder="Ana García"></div>
+      <div class="form-group"><label class="form-label">Email</label><input class="form-input" type="email" id="reg-email" placeholder="tu@email.com"></div>
+      <div class="form-group"><label class="form-label">Contraseña</label><input class="form-input" type="password" id="reg-pass" placeholder="mínimo 6 caracteres"></div>
+      <button class="btn-main" onclick="doRegister()">Crear cuenta</button>
+    </div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app-screen" class="hidden">
+  <div class="app-wrap">
+    <div class="app-header">
+      <div class="app-logo">GymApp</div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <div class="app-user" id="user-name-label"></div>
+        <button class="btn-logout" onclick="doLogout()">Salir</button>
+      </div>
+    </div>
+
+    <div class="nav" id="main-nav">
+      <button class="nav-btn active" onclick="showScreen('inicio')">Inicio</button>
+      <button class="nav-btn" onclick="showScreen('clases')">Clases</button>
+      <button class="nav-btn" onclick="showScreen('ranking')">Ranking</button>
+      <button class="nav-btn hidden" id="nav-admin" onclick="showScreen('admin')">Admin</button>
+    </div>
+
+    <!-- INICIO -->
+    <div id="screen-inicio" class="screen show">
+      <div class="stats-grid">
+        <div class="stat-card"><div class="stat-label">Mis visitas</div><div class="stat-value" id="mis-visitas">—</div></div>
+        <div class="stat-card"><div class="stat-label">Este mes</div><div class="stat-value" id="visitas-mes">—</div></div>
+        <div class="stat-card"><div class="stat-label">Mi puesto</div><div class="stat-value" id="mi-puesto">—</div></div>
+      </div>
+      <button class="checkin-big" onclick="doCheckin()">Registrar entrada</button>
+      <div class="section-title">Últimas entradas</div>
+      <div id="ultimas-entradas"></div>
+    </div>
+
+    <!-- CLASES -->
+    <div id="screen-clases" class="screen">
+      <div id="lista-clases"></div>
+    </div>
+
+    <!-- RANKING -->
+    <div id="screen-ranking" class="screen">
+      <div class="section-title">Ranking del mes — más visitas</div>
+      <div id="lista-ranking"></div>
+    </div>
+
+    <!-- ADMIN -->
+    <div id="screen-admin" class="screen">
+      <div class="section-title">Visitas de hoy</div>
+      <div class="stats-grid" style="grid-template-columns:repeat(2,1fr)">
+        <div class="stat-card"><div class="stat-label">Entradas hoy</div><div class="stat-value" id="admin-hoy">—</div></div>
+        <div class="stat-card"><div class="stat-label">Total socios</div><div class="stat-value" id="admin-socios">—</div></div>
+      </div>
+      <div class="section-title">Gestión de clases</div>
+      <div id="admin-clases"></div>
+      <button class="btn-add" onclick="openModalClase()">+ Añadir clase</button>
+      <div class="section-title">Todos los socios</div>
+      <div id="admin-socios-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CLASE -->
+<div style="padding:0 1rem" id="modal-wrap">
+<div class="modal-bg" id="modal-clase">
+  <div class="modal-box">
+    <div class="modal-title">Nueva clase</div>
+    <div class="form-group"><label class="form-label">Nombre</label><input class="form-input" id="m-nombre" placeholder="Yoga, HIIT, Spinning..."></div>
+    <div class="form-group"><label class="form-label">Instructor</label><input class="form-input" id="m-instructor" placeholder="Nombre del instructor"></div>
+    <div class="form-group" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <div><label class="form-label">Hora</label><input class="form-input" id="m-hora" placeholder="08:00"></div>
+      <div><label class="form-label">Duración</label><input class="form-input" id="m-duracion" placeholder="60 min"></div>
+    </div>
+    <div class="form-group" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <div><label class="form-label">Día</label><input class="form-input" id="m-dia" placeholder="Lunes"></div>
+      <div><label class="form-label">Plazas</label><input class="form-input" type="number" id="m-plazas" placeholder="15" value="15"></div>
+    </div>
+    <label class="form-label">Color</label>
+    <div class="color-opts" id="color-opts"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModalClase()">Cancelar</button>
+      <button class="btn-save" onclick="guardarClase()">Guardar</button>
+    </div>
+  </div>
+</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL = 'https://tdkpntrvbujxbgezlayg.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_SNsgBqoF6ZoN8JGMxtTOQw_rXV_sqYj';
+const { createClient } = supabase;
+const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const CLASE_COLORS = ['#7F77DD','#1D9E75','#D85A30','#378ADD','#D4537E','#BA7517'];
+let selColor = CLASE_COLORS[0];
+let currentUser = null;
+let currentProfile = null;
+let reservasUsuario = [];
+
+function toast(msg, dur=2500) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), dur);
+}
+
+function switchAuthTab(tab) {
+  document.querySelectorAll('.auth-tab').forEach((t,i)=>t.classList.toggle('active', (i===0&&tab==='login')||(i===1&&tab==='register')));
+  document.getElementById('login-form').classList.toggle('hidden', tab!=='login');
+  document.getElementById('register-form').classList.toggle('hidden', tab!=='register');
+  document.getElementById('auth-error').style.display='none';
+}
+
+function showError(msg) {
+  const el = document.getElementById('auth-error');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+async function doLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const pass = document.getElementById('login-pass').value;
+  if (!email||!pass) return showError('Rellena todos los campos');
+  const {error} = await db.auth.signInWithPassword({email, password:pass});
+  if (error) return showError('Email o contraseña incorrectos');
+}
+
+async function doRegister() {
+  const nombre = document.getElementById('reg-name').value.trim();
+  const email = document.getElementById('reg-email').value.trim();
+  const pass = document.getElementById('reg-pass').value;
+  if (!nombre||!email||!pass) return showError('Rellena todos los campos');
+  if (pass.length < 6) return showError('La contraseña debe tener al menos 6 caracteres');
+  const {data, error} = await db.auth.signUp({email, password:pass});
+  if (error) return showError(error.message);
+  if (data.user) {
+    await db.from('profiles').insert({id:data.user.id, nombre, rol:'socio'});
+    toast('Cuenta creada. ¡Bienvenido!');
+  }
+}
+
+async function doLogout() {
+  await db.auth.signOut();
+  document.getElementById('auth-screen').classList.remove('hidden');
+  document.getElementById('app-screen').classList.add('hidden');
+}
+
+async function initApp(user) {
+  currentUser = user;
+  const {data:profile} = await db.from('profiles').select('*').eq('id', user.id).single();
+  currentProfile = profile;
+  document.getElementById('user-name-label').textContent = profile?.nombre || user.email;
+  document.getElementById('auth-screen').classList.add('hidden');
+  document.getElementById('app-screen').classList.remove('hidden');
+  if (profile?.rol === 'admin') {
+    document.getElementById('nav-admin').classList.remove('hidden');
+  }
+  loadInicio();
+}
+
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('show'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('screen-'+name).classList.add('show');
+  event.target.classList.add('active');
+  if (name==='clases') loadClases();
+  if (name==='ranking') loadRanking();
+  if (name==='admin') loadAdmin();
+}
+
+async function loadInicio() {
+  const hoy = new Date().toISOString().split('T')[0];
+  const mes = new Date().toISOString().slice(0,7);
+
+  const {data:total} = await db.from('checkins').select('id').eq('usuario_id', currentUser.id);
+  const {data:mesData} = await db.from('checkins').select('id').eq('usuario_id', currentUser.id).gte('fecha', mes+'-01');
+  const {data:ultimas} = await db.from('checkins').select('fecha,created_at').eq('usuario_id', currentUser.id).order('created_at',{ascending:false}).limit(5);
+
+  document.getElementById('mis-visitas').textContent = total?.length || 0;
+  document.getElementById('visitas-mes').textContent = mesData?.length || 0;
+
+  const el = document.getElementById('ultimas-entradas');
+  if (!ultimas?.length) { el.innerHTML = '<div style="text-align:center;padding:2rem;color:#aaa;font-size:14px">Aún no tienes entradas registradas</div>'; }
+  else {
+    el.innerHTML = ultimas.map(c=>`<div class="card"><div class="card-row"><div style="width:8px;height:8px;border-radius:50%;background:#1D9E75;flex-shrink:0"></div><div class="person-info"><div class="person-name">${formatDate(c.fecha)}</div><div class="person-sub">${formatTime(c.created_at)}</div></div></div></div>`).join('');
+  }
+  await loadPuesto();
+}
+
+async function loadPuesto() {
+  const mes = new Date().toISOString().slice(0,7);
+  const {data} = await db.from('checkins').select('usuario_id').gte('fecha', mes+'-01');
+  if (!data) return;
+  const counts = {};
+  data.forEach(r=>counts[r.usuario_id]=(counts[r.usuario_id]||0)+1);
+  const sorted = Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+  const pos = sorted.findIndex(([id])=>id===currentUser.id);
+  document.getElementById('mi-puesto').textContent = pos>=0 ? '#'+(pos+1) : '—';
+}
+
+async function doCheckin() {
+  const hoy = new Date().toISOString().split('T')[0];
+  const {data:existing} = await db.from('checkins').select('id').eq('usuario_id',currentUser.id).eq('fecha',hoy);
+  if (existing?.length) { toast('Ya registraste entrada hoy'); return; }
+  const {error} = await db.from('checkins').insert({usuario_id:currentUser.id, fecha:hoy});
+  if (error) { toast('Error al registrar'); return; }
+  toast('Entrada registrada. ¡A por ello!');
+  loadInicio();
+}
+
+async function loadClases() {
+  const {data:clases} = await db.from('clases').select('*').order('hora');
+  const {data:reservas} = await db.from('reservas').select('clase_id').eq('usuario_id',currentUser.id);
+  reservasUsuario = reservas?.map(r=>r.clase_id) || [];
+
+  const {data:todasReservas} = await db.from('reservas').select('clase_id');
+  const conteo = {};
+  todasReservas?.forEach(r=>conteo[r.clase_id]=(conteo[r.clase_id]||0)+1);
+
+  const el = document.getElementById('lista-clases');
+  if (!clases?.length) { el.innerHTML='<div style="text-align:center;padding:2rem;color:#aaa;font-size:14px">No hay clases disponibles</div>'; return; }
+
+  el.innerHTML = clases.map(cl=>{
+    const ocupadas = conteo[cl.id]||0;
+    const libres = cl.plazas - ocupadas;
+    const reservado = reservasUsuario.includes(cl.id);
+    const lleno = libres <= 0 && !reservado;
+    const pct = Math.min(100, Math.round(ocupadas/cl.plazas*100));
+    return `<div class="card">
+      <div class="clase-header">
+        <div class="clase-stripe" style="background:${cl.color||'#7F77DD'}"></div>
+        <div style="flex:1">
+          <div class="clase-name">${cl.nombre}</div>
+          <div class="clase-meta">${cl.dia||''} ${cl.hora||''} · ${cl.duracion||''} · ${cl.instructor||''}</div>
+          <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
+            <div class="bar-wrap" style="max-width:120px"><div class="bar-fill" style="width:${pct}%;background:${cl.color||'#7F77DD'}"></div></div>
+            <span style="font-size:11px;color:#aaa">${ocupadas}/${cl.plazas}</span>
+            ${lleno?'<span class="badge-lleno">Lleno</span>':''}
+          </div>
+        </div>
+        <div style="text-align:right">
+          <div class="clase-plazas"><span>${libres<0?0:libres}</span>libres</div>
+          <button class="btn-reservar ${reservado?'reservado':lleno?'lleno':''}" onclick="${lleno&&!reservado?'':('toggleReserva("'+cl.id+'")')}">
+            ${reservado?'Apuntado ✓':lleno?'Lleno':'Apuntarme'}
+          </button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function toggleReserva(claseId) {
+  if (reservasUsuario.includes(claseId)) {
+    await db.from('reservas').delete().eq('usuario_id',currentUser.id).eq('clase_id',claseId);
+    toast('Te has desapuntado');
+  } else {
+    await db.from('reservas').insert({usuario_id:currentUser.id, clase_id:claseId});
+    toast('Apuntado a la clase');
+  }
+  loadClases();
+}
+
+async function loadRanking() {
+  const mes = new Date().toISOString().slice(0,7);
+  const {data:checkins} = await db.from('checkins').select('usuario_id').gte('fecha',mes+'-01');
+  const {data:profiles} = await db.from('profiles').select('id,nombre');
+  if (!checkins||!profiles) return;
+
+  const counts = {};
+  checkins.forEach(r=>counts[r.usuario_id]=(counts[r.usuario_id]||0)+1);
+  const profileMap = {};
+  profiles.forEach(p=>profileMap[p.id]=p.nombre);
+
+  const sorted = Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  const max = sorted[0]?.[1]||1;
+  const medals = ['g','s','b'];
+
+  const el = document.getElementById('lista-ranking');
+  if (!sorted.length) { el.innerHTML='<div style="text-align:center;padding:2rem;color:#aaa;font-size:14px">Aún no hay datos este mes</div>'; return; }
+
+  el.innerHTML = sorted.map(([id,visitas],i)=>{
+    const isMe = id===currentUser.id;
+    const initials = (profileMap[id]||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+    const pct = Math.round(visitas/max*100);
+    return `<div class="card" style="${isMe?'border:1.5px solid #5DCAA5':''}">
+      <div class="card-row">
+        <div class="rank-num ${medals[i]||''}">${i+1}°</div>
+        <div class="avatar">${initials}</div>
+        <div style="flex:1">
+          <div class="person-name">${profileMap[id]||'Socio'}${isMe?'<span class="me-chip">Tú</span>':''}</div>
+          <div class="bar-wrap" style="margin-top:5px"><div class="bar-fill" style="width:${pct}%"></div></div>
+        </div>
+        <div class="visits-badge">${visitas} visitas</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function loadAdmin() {
+  const hoy = new Date().toISOString().split('T')[0];
+  const {data:hoyData} = await db.from('checkins').select('id').eq('fecha',hoy);
+  const {data:socios} = await db.from('profiles').select('*');
+  const {data:clases} = await db.from('clases').select('*').order('hora');
+
+  document.getElementById('admin-hoy').textContent = hoyData?.length||0;
+  document.getElementById('admin-socios').textContent = socios?.length||0;
+
+  const acEl = document.getElementById('admin-clases');
+  acEl.innerHTML = clases?.map(cl=>`
+    <div class="card">
+      <div class="clase-header">
+        <div class="clase-stripe" style="background:${cl.color||'#7F77DD'}"></div>
+        <div style="flex:1">
+          <div class="clase-name">${cl.nombre}</div>
+          <div class="clase-meta">${cl.dia||''} ${cl.hora||''} · ${cl.duracion||''} · ${cl.instructor||''} · ${cl.plazas} plazas</div>
+        </div>
+        <button onclick="eliminarClase('${cl.id}')" style="background:none;border:none;cursor:pointer;color:#bbb;font-size:16px;padding:4px">✕</button>
+      </div>
+    </div>`).join('')||'<div style="color:#aaa;font-size:14px;padding:1rem 0">No hay clases</div>';
+
+  const asEl = document.getElementById('admin-socios-list');
+  asEl.innerHTML = socios?.map(s=>{
+    const ini = s.nombre.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+    return `<div class="card"><div class="card-row">
+      <div class="avatar">${ini}</div>
+      <div style="flex:1"><div class="person-name">${s.nombre}</div><div class="person-sub">${s.rol}</div></div>
+      ${s.rol!=='admin'?`<button onclick="hacerAdmin('${s.id}')" style="border:1px solid #eee;border-radius:8px;padding:5px 10px;font-size:11px;cursor:pointer;background:none;color:#888;font-family:inherit">Hacer admin</button>`:'<span style="font-size:11px;background:#EEEDFE;color:#3C3489;padding:3px 8px;border-radius:20px">Admin</span>'}
+    </div></div>`;
+  }).join('')||'';
+}
+
+async function eliminarClase(id) {
+  if (!confirm('¿Eliminar esta clase?')) return;
+  await db.from('clases').delete().eq('id',id);
+  toast('Clase eliminada');
+  loadAdmin();
+}
+
+async function hacerAdmin(id) {
+  if (!confirm('¿Convertir este socio en administrador?')) return;
+  await db.from('profiles').update({rol:'admin'}).eq('id',id);
+  toast('Socio convertido en admin');
+  loadAdmin();
+}
+
+function openModalClase() {
+  selColor = CLASE_COLORS[0];
+  renderColorOpts();
+  document.getElementById('modal-clase').classList.add('open');
+}
+
+function closeModalClase() {
+  document.getElementById('modal-clase').classList.remove('open');
+}
+
+function renderColorOpts() {
+  const el = document.getElementById('color-opts');
+  el.innerHTML = CLASE_COLORS.map(c=>`<div class="color-opt${c===selColor?' sel':''}" style="background:${c}" onclick="selColor='${c}';renderColorOpts()"></div>`).join('');
+}
+
+async function guardarClase() {
+  const nombre = document.getElementById('m-nombre').value.trim();
+  if (!nombre) return;
+  const {error} = await db.from('clases').insert({
+    nombre,
+    instructor: document.getElementById('m-instructor').value.trim(),
+    hora: document.getElementById('m-hora').value.trim(),
+    duracion: document.getElementById('m-duracion').value.trim(),
+    dia: document.getElementById('m-dia').value.trim(),
+    plazas: parseInt(document.getElementById('m-plazas').value)||15,
+    color: selColor
+  });
+  if (error) { toast('Error: ' + error.message); return; }
+  document.getElementById('m-nombre').value='';
+  document.getElementById('m-instructor').value='';
+  document.getElementById('m-hora').value='';
+  document.getElementById('m-duracion').value='';
+  document.getElementById('m-dia').value='';
+  document.getElementById('m-plazas').value='15';
+  closeModalClase();
+  toast('Clase creada');
+  await loadAdmin();
+}
+
+function formatDate(dateStr) {
+  const d = new Date(dateStr+'T12:00:00');
+  return d.toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long'});
+}
+
+function formatTime(ts) {
+  return new Date(ts).toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'});
+}
+
+db.auth.onAuthStateChange((event, session) => {
+  if (session?.user) initApp(session.user);
+  else {
+    document.getElementById('auth-screen').classList.remove('hidden');
+    document.getElementById('app-screen').classList.add('hidden');
+  }
+});
+</script>
+</body>
+</html>
