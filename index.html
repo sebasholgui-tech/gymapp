@@ -683,7 +683,7 @@ async function loadClases() {
           <button class="btn-reservar ${reservado?'reservado':(lleno&&!reservado?'lleno':'')}" onclick="${onclk}">
             ${reservado?'Apuntado ✓':(lleno&&!reservado?'Lleno':'Apuntarme')}
           </button>
-          ${reservado && clId ? `<button onclick="cancelarReserva('${clId}','${cl.hora}')" style="background:none;border:none;cursor:pointer;color:#e63946;font-size:11px;font-family:inherit;padding:0;text-decoration:underline">Cancelar reserva</button>` : ''}
+          ${reservado && clId ? `<button onclick="cancelarReserva('${clId}','${cl.hora}','${selectedDay}')" style="background:none;border:none;cursor:pointer;color:#e63946;font-size:11px;font-family:inherit;padding:0;text-decoration:underline">Cancelar reserva</button>` : ''}
           ${!reservado && clId ? `<button onclick="verApuntados('${clId}','${cl.nombre}','${color}')" style="background:none;border:none;cursor:pointer;color:#555;font-size:11px;margin-top:0;font-family:inherit;padding:0">${ocupadas} apuntados 👥</button>` : ''}
           ${reservado && clId ? `<button onclick="verApuntados('${clId}','${cl.nombre}','${color}')" style="background:none;border:none;cursor:pointer;color:#555;font-size:11px;font-family:inherit;padding:0">${ocupadas} apuntados 👥</button>` : ''}
         </div>
@@ -1432,18 +1432,23 @@ async function editarHoras(userId, nombre, horasActuales) {
 }
 
 
-function puedeCancel(horaStr) {
+function puedeCancel(horaStr, diaNombre) {
   if (!horaStr) return true;
   const now = new Date();
+  const diasMap = {'Lunes':1,'Martes':2,'Miércoles':3,'Jueves':4,'Viernes':5,'Sábado':6};
+  const diaCl = diasMap[diaNombre];
+  const diaHoy = now.getDay(); // 0=dom,1=lun...
+  // If class is not today, always allow cancel
+  if (diaCl !== diaHoy) return true;
+  // If class is today, check 1 hour rule
   const [h, m] = horaStr.split(':').map(Number);
   const claseMin = h * 60 + m;
   const ahoraMin = now.getHours() * 60 + now.getMinutes();
-  // Can cancel if more than 60 min before class
   return (claseMin - ahoraMin) > 60;
 }
 
-async function cancelarReserva(claseId, horaStr) {
-  if (horaStr && !puedeCancel(horaStr)) {
+async function cancelarReserva(claseId, horaStr, diaNombre) {
+  if (horaStr && !puedeCancel(horaStr, diaNombre)) {
     toast('No puedes cancelar con menos de 1 hora de antelación');
     return;
   }
