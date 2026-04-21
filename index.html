@@ -1402,10 +1402,15 @@ async function loadCalendario() {
 
 
 async function editarHoras(userId, nombre, horasActuales) {
-  const nuevas = prompt('Horas mensuales contratadas para ' + nombre + ':', horasActuales);
-  if (nuevas === null || isNaN(nuevas)) return;
-  await db.from('profiles').update({horas_mes: parseInt(nuevas)}).eq('id', userId);
-  toast('Horas actualizadas para ' + nombre);
+  const nuevas = prompt('Horas mensuales para ' + nombre + ' (actual: ' + horasActuales + 'h):', horasActuales);
+  if (nuevas === null || nuevas === '' || isNaN(nuevas)) return;
+  const {error} = await db.from('profiles').update({horas_mes: parseInt(nuevas)}).eq('id', userId);
+  if (error) {
+    toast('Error: ' + error.message);
+    console.error(error);
+    return;
+  }
+  toast('✓ ' + nombre + ' → ' + nuevas + 'h/mes');
   loadAdmin();
 }
 
