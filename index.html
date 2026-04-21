@@ -209,12 +209,11 @@
         <button class="rank-tab" onclick="showRankTab('NoGi',this)" id="rtab-NoGi">NoGi</button>
         <button class="rank-tab" onclick="showRankTab('Striking',this)" id="rtab-Striking">Striking</button>
         <button class="rank-tab" onclick="showRankTab('Boxeo',this)" id="rtab-Boxeo">Boxeo</button>
-        <button class="rank-tab" onclick="showRankTab('Kids',this)" id="rtab-Kids">Kids</button>
         <button class="rank-tab" onclick="showRankTab('General',this)" id="rtab-General">General</button>
       </div>
-      <div style="display:flex;gap:6px;margin-bottom:14px">
-        <button class="rank-tab active" id="period-mes" onclick="selPeriod='mes';document.getElementById('period-mes').classList.add('active');document.getElementById('period-anual').classList.remove('active');loadRanking()" style="font-size:11px;padding:4px 12px">Este mes</button>
-        <button class="rank-tab" id="period-anual" onclick="selPeriod='anual';document.getElementById('period-anual').classList.add('active');document.getElementById('period-mes').classList.remove('active');loadRanking()" style="font-size:11px;padding:4px 12px">Este año</button>
+      <div style="display:flex;gap:8px;margin-bottom:14px">
+        <button id="period-mes" style="flex:1;background:#e63946;border:none;border-radius:8px;padding:7px;font-size:12px;font-weight:700;color:#fff;cursor:pointer;font-family:inherit" onclick="setPeriod('mes')">Este mes</button>
+        <button id="period-anual" style="flex:1;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:8px;padding:7px;font-size:12px;font-weight:700;color:#888;cursor:pointer;font-family:inherit" onclick="setPeriod('anual')">Este año</button>
       </div>
       <div id="alumno-mes-wrap"></div>
       <div id="lista-ranking"></div>
@@ -625,6 +624,17 @@ async function toggleReservaClase(claseId){
 }
 
 
+function setPeriod(p) {
+  selPeriod = p;
+  document.getElementById('period-mes').style.background = p==='mes' ? '#e63946' : '#1a1a1a';
+  document.getElementById('period-mes').style.color = p==='mes' ? '#fff' : '#888';
+  document.getElementById('period-mes').style.border = p==='mes' ? 'none' : '1px solid #2a2a2a';
+  document.getElementById('period-anual').style.background = p==='anual' ? '#e63946' : '#1a1a1a';
+  document.getElementById('period-anual').style.color = p==='anual' ? '#fff' : '#888';
+  document.getElementById('period-anual').style.border = p==='anual' ? 'none' : '1px solid #2a2a2a';
+  loadRanking();
+}
+
 function showRankTab(tipo, btn) {
   currentRankTab = tipo;
   document.querySelectorAll('.rank-tab').forEach(b=>b.classList.remove('active'));
@@ -866,7 +876,6 @@ const DISCIPLINAS = {
   NoGi:     {label:'NoGi',     color:'#9C27B0', icon:'nogi'},
   Striking: {label:'Striking', color:'#FF9800', icon:'kick'},
   Boxeo:    {label:'Boxeo',    color:'#FF5722', icon:'boxing'},
-  Kids:     {label:'Kids',     color:'#4CAF50', icon:'kids'},
 };
 
 function iconSVG(icon, color, size=28) {
