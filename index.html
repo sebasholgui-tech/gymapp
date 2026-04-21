@@ -269,6 +269,8 @@
       <div class="section-title">Gestión de clases</div>
       <div id="admin-clases"></div>
       <button class="btn-add" onclick="openModalClase()">+ Añadir clase</button>
+      <div class="section-title">Gestión de horas</div>
+      <div id="admin-horas-list" style="margin-bottom:14px"></div>
       <div class="section-title">Buscar socios</div>
       <input class="form-input" id="admin-search" placeholder="Buscar por nombre..." oninput="filterSocios()" style="margin-bottom:12px">
       <div id="admin-socios-list"></div>
@@ -868,6 +870,35 @@ async function loadAdmin() {
   })).sort((a,b)=>b.visitas_mes-a.visitas_mes)||[];
 
   renderSociosList(allSocios);
+
+  // Render horas management
+  const horasEl = document.getElementById('admin-horas-list');
+  horasEl.innerHTML = allSocios.map(s=>{
+    const hm = s.horas_mes||0;
+    const usadas = s.visitas_mes||0;
+    const pct = hm>0 ? Math.min(100,Math.round(usadas/hm*100)) : 0;
+    const col = pct>=100?'#e63946':pct>=75?'#FF9800':'#1D9E75';
+    const ini = s.nombre.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+    return `<div class="card" style="margin-bottom:8px">
+      <div style="padding:12px 14px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+          <div style="width:32px;height:32px;border-radius:50%;background:#2a0a0a;border:1px solid #e6394644;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#e63946;overflow:hidden;flex-shrink:0">
+            ${s.avatar_url?`<img src="${s.avatar_url}" style="width:100%;height:100%;object-fit:cover">`:ini}
+          </div>
+          <div style="flex:1">
+            <div style="font-size:13px;font-weight:700;color:#fff">${s.nombre}</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <span style="font-size:13px;font-weight:700;color:${col}">${usadas}/${hm}h</span>
+            <button onclick="editarHoras('${s.id}','${s.nombre}',${hm})" style="background:#e63946;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;color:#fff;font-family:inherit">Editar</button>
+          </div>
+        </div>
+        <div style="background:#2a2a2a;border-radius:4px;height:6px;overflow:hidden">
+          <div style="width:${pct}%;height:6px;background:${col};border-radius:4px"></div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 async function eliminarClase(id) {
@@ -1289,22 +1320,35 @@ async function loadCalendario() {
   const colorBarra = pct >= 100 ? '#e63946' : pct >= 75 ? '#FF9800' : '#1D9E75';
 
   const horasEl = document.getElementById('horas-bar');
+  const colorBarra2 = pct >= 100 ? '#e63946' : pct >= 75 ? '#FF9800' : '#1D9E75';
   if (horasMes > 0) {
     horasEl.innerHTML = `
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-        <div style="font-size:13px;font-weight:700;color:#fff">Horas contratadas este mes</div>
-        <div style="font-size:13px;font-weight:700;color:${colorBarra}">${horasUsadas}/${horasMes}h</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div>
+          <div style="font-size:11px;color:#555;text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px">Horas este mes</div>
+          <div style="font-size:28px;font-weight:800;color:#fff">${horasUsadas}<span style="font-size:16px;color:#555;font-weight:500">/${horasMes}h</span></div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:11px;color:#555;margin-bottom:2px">Restantes</div>
+          <div style="font-size:24px;font-weight:800;color:${horasRestantes===0?'#e63946':'#1D9E75'}">${horasRestantes}h</div>
+        </div>
       </div>
-      <div style="background:#2a2a2a;border-radius:6px;height:8px;overflow:hidden;margin-bottom:8px">
-        <div style="width:${pct}%;height:8px;background:${colorBarra};border-radius:6px;transition:width 0.3s"></div>
+      <div style="background:#2a2a2a;border-radius:8px;height:10px;overflow:hidden;margin-bottom:6px">
+        <div style="width:${pct}%;height:10px;background:${colorBarra2};border-radius:8px"></div>
       </div>
       <div style="display:flex;justify-content:space-between">
-        <div style="font-size:12px;color:#555">${horasUsadas} horas usadas</div>
-        <div style="font-size:12px;color:${horasRestantes===0?'#e63946':'#1D9E75'}">${horasRestantes} horas restantes</div>
-      </div>
-      ${horasRestantes===0?'<div style="text-align:center;margin-top:8px;font-size:12px;color:#e63946;font-weight:700">⚠️ Has agotado tus horas este mes</div>':''}`;
+        <div style="font-size:11px;color:#555">${pct}% usado</div>
+        ${horasRestantes===0?'<div style="font-size:11px;color:#e63946;font-weight:700">⚠️ Horas agotadas</div>':'<div style="font-size:11px;color:#1D9E75">En tarifa</div>'}
+      </div>`;
   } else {
-    horasEl.innerHTML = `<div style="text-align:center;color:#555;font-size:13px">Sin tarifa de horas asignada · <a onclick="openDiscModal()" style="color:#e63946;cursor:pointer">Contacta con el gym</a></div>`;
+    horasEl.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div style="font-size:11px;color:#555;text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px">Clases este mes</div>
+          <div style="font-size:28px;font-weight:800;color:#fff">${horasUsadas}<span style="font-size:14px;color:#555;font-weight:500"> clases</span></div>
+        </div>
+        <div style="font-size:11px;color:#444;text-align:right">Sin tarifa<br>de horas</div>
+      </div>`;
   }
 
   // Build calendar grid
