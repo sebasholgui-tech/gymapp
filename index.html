@@ -175,7 +175,10 @@
         <div style="flex:1">
           <div style="font-size:16px;font-weight:700;color:#fff" id="profile-name"></div>
           <div style="font-size:12px;color:#555;margin-top:2px" id="profile-role"></div>
-          <div id="belt-display" style="margin-top:4px;cursor:pointer" onclick="openBeltModal()"></div>
+          <div style="display:flex;align-items:center;gap:6px;margin-top:6px;flex-wrap:wrap">
+            <div id="disc-display" style="cursor:pointer" onclick="openDiscModal()"></div>
+            <div id="belt-display" style="cursor:pointer" onclick="openBeltModal()"></div>
+          </div>
         </div>
         <div style="text-align:right">
           <div style="font-size:11px;color:#555">Este mes</div>
@@ -200,14 +203,20 @@
 
     <!-- RANKING -->
     <div id="screen-ranking" class="screen">
-      <div style="display:flex;gap:6px;margin-bottom:14px;overflow-x:auto;padding-bottom:4px" id="rank-tabs">
-        <button class="rank-tab active" onclick="showRankTab('MMA',this)">MMA</button>
-        <button class="rank-tab" onclick="showRankTab('BJJ',this)">BJJ</button>
-        <button class="rank-tab" onclick="showRankTab('NoGi',this)">NoGi</button>
-        <button class="rank-tab" onclick="showRankTab('Striking',this)">Striking</button>
-        <button class="rank-tab" onclick="showRankTab('Kids',this)">Kids</button>
-        <button class="rank-tab" onclick="showRankTab('General',this)">General</button>
+      <div style="display:flex;gap:6px;margin-bottom:10px;overflow-x:auto;padding-bottom:4px">
+        <button class="rank-tab active" onclick="showRankTab('MMA',this)" id="rtab-MMA">MMA</button>
+        <button class="rank-tab" onclick="showRankTab('BJJ',this)" id="rtab-BJJ">BJJ</button>
+        <button class="rank-tab" onclick="showRankTab('NoGi',this)" id="rtab-NoGi">NoGi</button>
+        <button class="rank-tab" onclick="showRankTab('Striking',this)" id="rtab-Striking">Striking</button>
+        <button class="rank-tab" onclick="showRankTab('Boxeo',this)" id="rtab-Boxeo">Boxeo</button>
+        <button class="rank-tab" onclick="showRankTab('Kids',this)" id="rtab-Kids">Kids</button>
+        <button class="rank-tab" onclick="showRankTab('General',this)" id="rtab-General">General</button>
       </div>
+      <div style="display:flex;gap:6px;margin-bottom:14px">
+        <button class="rank-tab active" id="period-mes" onclick="selPeriod='mes';document.getElementById('period-mes').classList.add('active');document.getElementById('period-anual').classList.remove('active');loadRanking()" style="font-size:11px;padding:4px 12px">Este mes</button>
+        <button class="rank-tab" id="period-anual" onclick="selPeriod='anual';document.getElementById('period-anual').classList.add('active');document.getElementById('period-mes').classList.remove('active');loadRanking()" style="font-size:11px;padding:4px 12px">Este año</button>
+      </div>
+      <div id="alumno-mes-wrap"></div>
       <div id="lista-ranking"></div>
     </div>
 
@@ -324,6 +333,7 @@ const TIPO_COLORS={'MMA':'#e63946','BJJ':'#2196F3','NoGi':'#9C27B0','Striking':'
 const DIAS=['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
 let selectedDay=DIAS[Math.min((new Date().getDay()+6)%7,5)];
 let currentRankTab='MMA';
+let selPeriod='mes';
 
 function toast(msg, dur=2500) {
   const t = document.getElementById('toast');
@@ -476,7 +486,15 @@ async function loadInicio() {
   document.getElementById('profile-name').textContent = currentProfile?.nombre || '';
   document.getElementById('profile-role').textContent = currentProfile?.rol === 'admin' ? 'Administrador' : 'Socio TMC';
   const beltEl = document.getElementById('belt-display');
-  if (beltEl) beltEl.innerHTML = beltHTML(currentProfile?.cinturon_bjj||'blanco', currentProfile?.galones_bjj||0) + '<span style="font-size:10px;color:#444;margin-left:4px">· toca para cambiar</span>';
+  if (beltEl) beltEl.innerHTML = beltHTML(currentProfile?.cinturon_bjj||'blanco', currentProfile?.galones_bjj||0) + '<span style="font-size:10px;color:#444;margin-left:4px">· cinturón</span>';
+  const discEl = document.getElementById('disc-display');
+  if (discEl) {
+    const disc = currentProfile?.disciplina || 'MMA';
+    const d = DISCIPLINAS[disc] || DISCIPLINAS.MMA;
+    discEl.innerHTML = iconSVG(d.icon, d.color, 28) + '<span style="font-size:10px;color:#444;margin-left:2px">· disciplina</span>';
+  }
+  // Hide belt if not BJJ
+  if (beltEl) beltEl.style.display = (currentProfile?.disciplina === 'BJJ') ? 'inline-flex' : 'none';
   const initEl = document.getElementById('avatar-initials');
   initEl.textContent = (currentProfile?.nombre||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
   showAvatar(currentProfile?.avatar_url);
@@ -611,71 +629,121 @@ function showRankTab(tipo, btn) {
   currentRankTab = tipo;
   document.querySelectorAll('.rank-tab').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
+  document.getElementById('period-mes').classList.add('active');
+  document.getElementById('period-anual').classList.remove('active');
+  selPeriod = 'mes';
   loadRanking();
 }
 
 async function loadRanking() {
-  const mes = new Date().toISOString().slice(0,7);
+  const now = new Date();
+  const mes = now.toISOString().slice(0,7);
+  const year = now.getFullYear();
+  const dateFrom = selPeriod === 'mes' ? mes+'-01' : year+'-01-01';
+
   const el = document.getElementById('lista-ranking');
   el.innerHTML = '<div style="text-align:center;padding:1rem;color:#555;font-size:13px">Cargando...</div>';
 
-  const {data:profiles} = await db.from('profiles').select('id,nombre');
+  const {data:profiles} = await db.from('profiles').select('id,nombre,disciplina,cinturon_bjj,galones_bjj,avatar_url');
   const profileMap = {};
-  profiles?.forEach(p=>profileMap[p.id]=p.nombre);
+  profiles?.forEach(p=>profileMap[p.id]=p);
 
+  // Filter profiles by discipline for this ranking
+  const discProfiles = currentRankTab === 'General' ? null :
+    new Set(profiles?.filter(p=>p.disciplina===currentRankTab).map(p=>p.id));
+
+  const {data:checkins} = await db.from('checkins').select('usuario_id,tipo').gte('fecha',dateFrom);
   let counts = {};
 
-  if (currentRankTab === 'General') {
-    const {data:checkins} = await db.from('checkins').select('usuario_id').gte('fecha',mes+'-01');
-    checkins?.forEach(r=>counts[r.usuario_id]=(counts[r.usuario_id]||0)+1);
-  } else {
-    // Get classes of this tipo
-    const {data:clases} = await db.from('clases').select('id,nombre').ilike('nombre','%'+currentRankTab+'%');
-    const tipoClases = new Set(clases?.map(c=>c.id)||[]);
-    // Also match by tipo field if exists
-    const {data:reservas} = await db.from('reservas').select('usuario_id,clase_id').gte('created_at',mes+'-01');
-    reservas?.forEach(r=>{
-      if(tipoClases.has(r.clase_id)) counts[r.usuario_id]=(counts[r.usuario_id]||0)+1;
-    });
-    // Fallback: use checkins if no reservas data
-    if(!Object.keys(counts).length) {
-      const {data:checkins} = await db.from('checkins').select('usuario_id').gte('fecha',mes+'-01');
-      checkins?.forEach(r=>counts[r.usuario_id]=(counts[r.usuario_id]||0)+1);
+  checkins?.forEach(r=>{
+    if(currentRankTab==='General' || r.tipo===currentRankTab || (!r.tipo && currentRankTab==='General')){
+      if(!discProfiles || discProfiles.has(r.usuario_id))
+        counts[r.usuario_id]=(counts[r.usuario_id]||0)+1;
     }
+  });
+
+  // If no discipline-filtered results, count all checkins for members of that discipline
+  if(!Object.keys(counts).length && discProfiles) {
+    checkins?.forEach(r=>{
+      if(discProfiles.has(r.usuario_id))
+        counts[r.usuario_id]=(counts[r.usuario_id]||0)+1;
+    });
   }
 
-  const sorted = Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,15);
+  const sorted = Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,20);
   const max = sorted[0]?.[1]||1;
   const medals = ['g','s','b'];
   const color = TIPO_COLORS[currentRankTab]||'#e63946';
+  const discColor = (DISCIPLINAS[currentRankTab]||DISCIPLINAS.MMA).color;
+
+  // Alumno del mes (only for monthly view)
+  const amWrap = document.getElementById('alumno-mes-wrap');
+  if (selPeriod === 'mes' && sorted.length) {
+    const [topId, topClases] = sorted[0];
+    const topProf = profileMap[topId];
+    const topName = topProf?.nombre || 'Socio';
+    const topInitials = topName.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+    const topDisc = topProf?.disciplina || 'MMA';
+    const topD = DISCIPLINAS[topDisc]||DISCIPLINAS.MMA;
+    amWrap.innerHTML = `<div style="background:linear-gradient(135deg,#1a1a1a,#2a1a0a);border:1px solid #BA7517;border-radius:14px;padding:16px;margin-bottom:14px">
+      <div style="font-size:10px;color:#BA7517;font-weight:700;text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px">🏆 Alumno del mes</div>
+      <div style="display:flex;align-items:center;gap:12px">
+        <div style="width:48px;height:48px;border-radius:50%;background:#2a1a0a;border:2px solid #BA7517;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:#BA7517;overflow:hidden;flex-shrink:0">
+          ${topProf?.avatar_url ? `<img src="${topProf.avatar_url}" style="width:100%;height:100%;object-fit:cover">` : topInitials}
+        </div>
+        <div style="flex:1">
+          <div style="font-size:16px;font-weight:700;color:#fff">${topName}</div>
+          <div style="display:flex;align-items:center;gap:6px;margin-top:4px">
+            ${iconSVG(topD.icon,topD.color,18)}
+            <span style="font-size:12px;color:#888">${topClases} clases este mes</span>
+          </div>
+        </div>
+        <div style="font-size:28px">🔥</div>
+      </div>
+    </div>`;
+  } else {
+    amWrap.innerHTML = '';
+  }
 
   if (!sorted.length) {
-    el.innerHTML='<div style="text-align:center;padding:2rem;color:#555;font-size:14px">Aún no hay datos este mes</div>';
+    el.innerHTML='<div style="text-align:center;padding:2rem;color:#555;font-size:14px">Aún no hay datos</div>';
     return;
   }
 
-  el.innerHTML = `<div style="font-size:11px;color:#555;text-align:right;margin-bottom:8px">Clases este mes</div>` +
-  sorted.map(([id,clases],i)=>{
+  el.innerHTML = sorted.map(([id,clases],i)=>{
+    const prof = profileMap[id];
+    const nombre = prof?.nombre||'Socio';
     const isMe = id===currentUser.id;
-    const nombre = profileMap[id]||'Socio';
-    const prof = profiles?.find(p=>p.id===id);
-    const belt = (currentRankTab==='BJJ'&&prof?.cinturon_bjj) ? beltHTML(prof.cinturon_bjj, prof.galones_bjj||0) : '';
     const initials = nombre.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
     const pct = Math.round(clases/max*100);
     const fires = i===0?'🔥🔥🔥':i===1?'🔥🔥':i===2?'🔥':'';
-    return `<div class="card" style="${isMe?'border:1.5px solid '+color:''}">
+    const disc = prof?.disciplina||'MMA';
+    const d = DISCIPLINAS[disc]||DISCIPLINAS.MMA;
+    const belt = (disc==='BJJ'&&prof?.cinturon_bjj) ? beltHTML(prof.cinturon_bjj,prof.galones_bjj||0,'sm') : '';
+    return `<div class="card" style="${isMe?'border:1.5px solid '+discColor:''}">
       <div class="card-row">
         <div class="rank-num ${medals[i]||''}">${i+1}°</div>
-        <div class="avatar" style="background:${color}22;color:${color}">${initials}</div>
-        <div style="flex:1">
-          <div class="person-name">${nombre}${isMe?'<span class="me-chip">Tú</span>':''}${fires?'<span style="font-size:14px;margin-left:4px">'+fires+'</span>':''}${belt}</div>
-          <div class="bar-wrap" style="margin-top:5px"><div class="bar-fill" style="width:${pct}%;background:${color}"></div></div>
+        <div style="width:36px;height:36px;border-radius:50%;background:${d.color}22;border:1.5px solid ${d.color}44;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:${d.color};overflow:hidden;flex-shrink:0">
+          ${prof?.avatar_url ? `<img src="${prof.avatar_url}" style="width:100%;height:100%;object-fit:cover">` : initials}
         </div>
-        <div class="visits-badge" style="color:${color}">${clases} clases</div>
+        <div style="flex:1;min-width:0">
+          <div class="person-name" style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">
+            ${nombre}${isMe?'<span class="me-chip">Tú</span>':''}
+            ${fires?`<span style="font-size:13px">${fires}</span>`:''}
+            ${belt}
+          </div>
+          <div style="display:flex;align-items:center;gap:4px;margin-top:3px">
+            ${iconSVG(d.icon,d.color,16)}
+            <div class="bar-wrap" style="margin:0"><div class="bar-fill" style="width:${pct}%;background:${d.color}"></div></div>
+          </div>
+        </div>
+        <div class="visits-badge" style="color:${d.color};font-size:12px">${clases}<br><span style="font-size:10px;color:#555">clases</span></div>
       </div>
     </div>`;
   }).join('');
 }
+
+
 async function loadAdmin() {
   const hoy = new Date().toISOString().split('T')[0];
   const {data:hoyData} = await db.from('checkins').select('id').eq('fecha',hoy);
@@ -791,6 +859,56 @@ async function doResetPassword() {
 }
 
 
+
+const DISCIPLINAS = {
+  MMA:      {label:'MMA',      color:'#e63946', icon:'mma'},
+  BJJ:      {label:'BJJ',      color:'#2196F3', icon:'belt'},
+  NoGi:     {label:'NoGi',     color:'#9C27B0', icon:'nogi'},
+  Striking: {label:'Striking', color:'#FF9800', icon:'kick'},
+  Boxeo:    {label:'Boxeo',    color:'#FF5722', icon:'boxing'},
+  Kids:     {label:'Kids',     color:'#4CAF50', icon:'kids'},
+};
+
+function iconSVG(icon, color, size=28) {
+  const s = size;
+  if (icon === 'mma') return `<svg width="${s}" height="${s}" viewBox="0 0 32 32" fill="none">
+    <ellipse cx="16" cy="16" rx="13" ry="13" fill="${color}22" stroke="${color}" stroke-width="1.5"/>
+    <path d="M10 20 Q10 12 16 12 Q22 12 22 18 Q22 22 18 23 L14 23 Q10 23 10 20Z" fill="${color}" opacity="0.9"/>
+    <path d="M14 12 L12 9 Q16 7 20 9 L18 12" fill="${color}"/>
+    <rect x="13" y="22" width="6" height="3" rx="1.5" fill="${color}" opacity="0.7"/>
+  </svg>`;
+  if (icon === 'boxing') return `<svg width="${s}" height="${s}" viewBox="0 0 32 32" fill="none">
+    <ellipse cx="16" cy="16" rx="13" ry="13" fill="${color}22" stroke="${color}" stroke-width="1.5"/>
+    <path d="M9 19 Q9 13 13 12 L20 12 Q24 12 24 17 Q24 21 20 22 L12 22 Q9 22 9 19Z" fill="${color}" opacity="0.85"/>
+    <rect x="9" y="21" width="14" height="3" rx="1.5" fill="${color}" opacity="0.6"/>
+    <path d="M13 12 L13 9 Q16 8 19 9 L19 12" fill="${color}" opacity="0.7"/>
+  </svg>`;
+  if (icon === 'belt') return beltHTML('azul', 2, 'sm');
+  if (icon === 'nogi') return `<svg width="${s}" height="${s}" viewBox="0 0 32 32" fill="none">
+    <ellipse cx="16" cy="16" rx="13" ry="13" fill="${color}22" stroke="${color}" stroke-width="1.5"/>
+    <circle cx="16" cy="13" r="4" fill="${color}" opacity="0.85"/>
+    <path d="M8 24 Q8 18 16 18 Q24 18 24 24" stroke="${color}" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0.85"/>
+  </svg>`;
+  if (icon === 'kick') return `<svg width="${s}" height="${s}" viewBox="0 0 32 32" fill="none">
+    <ellipse cx="16" cy="16" rx="13" ry="13" fill="${color}22" stroke="${color}" stroke-width="1.5"/>
+    <circle cx="14" cy="10" r="3" fill="${color}" opacity="0.85"/>
+    <path d="M14 13 L13 18 L10 22" stroke="${color}" stroke-width="2" stroke-linecap="round" fill="none" opacity="0.85"/>
+    <path d="M13 18 L20 16" stroke="${color}" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+    <ellipse cx="22" cy="15" rx="3" ry="2" fill="${color}" opacity="0.7"/>
+  </svg>`;
+  // kids
+  return `<svg width="${s}" height="${s}" viewBox="0 0 32 32" fill="none">
+    <ellipse cx="16" cy="16" rx="13" ry="13" fill="${color}22" stroke="${color}" stroke-width="1.5"/>
+    <circle cx="16" cy="11" r="4" fill="${color}" opacity="0.85"/>
+    <path d="M10 26 Q10 19 16 19 Q22 19 22 26" fill="${color}" opacity="0.7"/>
+  </svg>`;
+}
+
+function discBadge(disc) {
+  const d = DISCIPLINAS[disc] || DISCIPLINAS.MMA;
+  return `<span style="display:inline-flex;align-items:center;gap:4px;background:${d.color}22;border:1px solid ${d.color}44;border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700;color:${d.color}">${d.label}</span>`;
+}
+
 const CINTURONES = {
   blanco:   {color:'#f0f0f0', text:'#222', label:'Blanco'},
   azul:     {color:'#1565C0', text:'#fff', label:'Azul'},
@@ -798,6 +916,31 @@ const CINTURONES = {
   marron:   {color:'#6D4C41', text:'#fff', label:'Marrón'},
   negro:    {color:'#1a1a1a', text:'#fff', label:'Negro'},
 };
+
+
+let selDisc = 'MMA';
+
+function openDiscModal() {
+  selDisc = currentProfile?.disciplina || 'MMA';
+  renderDiscOptions();
+  document.getElementById('modal-disc-bg').style.display = 'flex';
+}
+function closeDiscModal() { document.getElementById('modal-disc-bg').style.display = 'none'; }
+function renderDiscOptions() {
+  const el = document.getElementById('disc-options');
+  el.innerHTML = Object.entries(DISCIPLINAS).map(([key,d])=>`
+    <div onclick="selDisc='${key}';renderDiscOptions()" style="cursor:pointer;border:2px solid ${key===selDisc?d.color:'#2a2a2a'};border-radius:10px;padding:10px;text-align:center;background:${key===selDisc?d.color+'22':'#111'}">
+      <div style="margin-bottom:6px">${iconSVG(d.icon,d.color,32)}</div>
+      <div style="font-size:12px;font-weight:700;color:${key===selDisc?d.color:'#888'}">${d.label}</div>
+    </div>`).join('');
+}
+async function saveDisc() {
+  await db.from('profiles').update({disciplina:selDisc}).eq('id',currentUser.id);
+  currentProfile.disciplina = selDisc;
+  closeDiscModal();
+  toast('Disciplina actualizada');
+  loadInicio();
+}
 
 let selCinturon = 'blanco';
 let selGalones = 0;
@@ -891,6 +1034,19 @@ db.auth.onAuthStateChange((event, session) => {
   }
 });
 </script>
+
+
+<!-- DISCIPLINE MODAL -->
+<div id="modal-disc-bg" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:200;align-items:center;justify-content:center">
+  <div style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:16px;padding:24px;width:310px">
+    <div style="font-size:16px;font-weight:700;color:#fff;margin-bottom:16px">Mi disciplina</div>
+    <div id="disc-options" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn-cancel" onclick="closeDiscModal()">Cancelar</button>
+      <button class="btn-save" onclick="saveDisc()">Guardar</button>
+    </div>
+  </div>
+</div>
 
 <!-- BELT MODAL -->
 <div id="modal-belt-bg" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:200;align-items:center;justify-content:center">
