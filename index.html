@@ -679,10 +679,14 @@ async function loadClases() {
         </div>
         <div style="text-align:right;flex-shrink:0">
           <div class="clase-plazas"><span style="color:${color}">${Math.max(0,libres)}</span>libres</div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
           <button class="btn-reservar ${reservado?'reservado':(lleno&&!reservado?'lleno':'')}" onclick="${onclk}">
             ${reservado?'Apuntado ✓':(lleno&&!reservado?'Lleno':'Apuntarme')}
           </button>
-          ${clId?`<button onclick="verApuntados('${clId}','${cl.nombre}','${color}')" style="background:none;border:none;cursor:pointer;color:#555;font-size:11px;margin-top:4px;font-family:inherit;padding:0">${ocupadas} apuntados 👥</button>`:''}
+          ${reservado && clId && puedeCancel(cl.hora) ? `<button onclick="cancelarReserva('${clId}')" style="background:none;border:none;cursor:pointer;color:#e63946;font-size:11px;font-family:inherit;padding:0;text-decoration:underline">Cancelar</button>` : ''}
+          ${!reservado && clId ? `<button onclick="verApuntados('${clId}','${cl.nombre}','${color}')" style="background:none;border:none;cursor:pointer;color:#555;font-size:11px;margin-top:0;font-family:inherit;padding:0">${ocupadas} apuntados 👥</button>` : ''}
+          ${reservado && clId ? `<button onclick="verApuntados('${clId}','${cl.nombre}','${color}')" style="background:none;border:none;cursor:pointer;color:#555;font-size:11px;font-family:inherit;padding:0">${ocupadas} apuntados 👥</button>` : ''}
+        </div>
         </div>
       </div>
     </div>`;
@@ -1425,6 +1429,24 @@ async function editarHoras(userId, nombre, horasActuales) {
   }
   toast('✓ ' + nombre + ' → ' + nuevas + 'h/mes');
   loadAdmin();
+}
+
+
+function puedeCancel(horaStr) {
+  if (!horaStr) return true;
+  const now = new Date();
+  const [h, m] = horaStr.split(':').map(Number);
+  const claseMin = h * 60 + m;
+  const ahoraMin = now.getHours() * 60 + now.getMinutes();
+  // Can cancel if more than 60 min before class
+  return (claseMin - ahoraMin) > 60;
+}
+
+async function cancelarReserva(claseId) {
+  if (!confirm('¿Cancelar tu reserva? Solo puedes cancelar hasta 1 hora antes.')) return;
+  await db.from('reservas').delete().eq('usuario_id', currentUser.id).eq('clase_id', claseId);
+  toast('Reserva cancelada');
+  loadClases();
 }
 
 db.auth.onAuthStateChange((event, session) => {
