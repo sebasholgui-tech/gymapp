@@ -1195,9 +1195,10 @@ async function verApuntados(claseId, claseNombre, color) {
   document.getElementById('modal-apuntados-list').innerHTML = profiles?.map((p,i)=>{
     const ini = p.nombre.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
     const d = DISCIPLINAS[p.disciplina]||DISCIPLINAS.MMA;
+    const clickFoto = p.avatar_url ? `onclick="abrirFoto('${p.avatar_url}','${p.nombre.replace(/'/g,"\\'")}','${p.disciplina||'MMA'}')"` : '';
     return `<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid #2a2a2a">
       <div style="font-size:14px;font-weight:700;color:#555;width:24px;text-align:center">${i+1}</div>
-      <div style="width:36px;height:36px;border-radius:50%;background:${d.color}22;border:1.5px solid ${d.color}44;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:${d.color};overflow:hidden;flex-shrink:0">
+      <div ${clickFoto} style="width:44px;height:44px;border-radius:50%;background:${d.color}22;border:1.5px solid ${d.color}44;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:${d.color};overflow:hidden;flex-shrink:0;${p.avatar_url?'cursor:pointer;box-shadow:0 0 0 2px #e6394644':''}">
         ${p.avatar_url?`<img src="${p.avatar_url}" style="width:100%;height:100%;object-fit:cover">`:ini}
       </div>
       <div style="flex:1">
@@ -1207,6 +1208,16 @@ async function verApuntados(claseId, claseNombre, color) {
       ${p.id===currentUser.id?'<span style="font-size:11px;background:#0a2a0a;color:#5dba5d;padding:2px 8px;border-radius:20px;font-weight:700">Tú</span>':''}
     </div>`;
   }).join('') || '<div style="text-align:center;color:#555;padding:1rem">Sin datos</div>';
+}
+
+
+function abrirFoto(url, nombre, disc) {
+  document.getElementById('modal-foto-img').src = url;
+  document.getElementById('modal-foto-nombre').textContent = nombre;
+  const d = DISCIPLINAS[disc] || DISCIPLINAS.MMA;
+  document.getElementById('modal-foto-disc').textContent = disc;
+  document.getElementById('modal-foto-disc').style.color = d.color;
+  document.getElementById('modal-foto-bg').style.display = 'flex';
 }
 
 db.auth.onAuthStateChange((event, session) => {
@@ -1263,6 +1274,16 @@ db.auth.onAuthStateChange((event, session) => {
       <button onclick="document.getElementById('modal-apuntados-bg').style.display='none'" style="background:none;border:none;color:#888;font-size:20px;cursor:pointer">✕</button>
     </div>
     <div id="modal-apuntados-list"></div>
+  </div>
+</div>
+
+<!-- MODAL FOTO -->
+<div id="modal-foto-bg" onclick="this.style.display='none'" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.9);z-index:300;align-items:center;justify-content:center;cursor:pointer">
+  <div style="text-align:center">
+    <img id="modal-foto-img" style="width:220px;height:220px;border-radius:50%;object-fit:cover;border:3px solid #e63946">
+    <div id="modal-foto-nombre" style="color:#fff;font-size:16px;font-weight:700;margin-top:14px"></div>
+    <div id="modal-foto-disc" style="color:#888;font-size:13px;margin-top:4px"></div>
+    <div style="color:#555;font-size:11px;margin-top:16px">Pulsa para cerrar</div>
   </div>
 </div>
 </body>
