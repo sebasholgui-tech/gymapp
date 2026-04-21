@@ -158,6 +158,7 @@
     <div class="nav" id="main-nav">
       <button class="nav-btn active" onclick="showScreen('inicio')">Inicio</button>
       <button class="nav-btn" onclick="showScreen('clases')">Clases</button>
+      <button class="nav-btn" onclick="showScreen('calendario')">Calendario</button>
       <button class="nav-btn" onclick="showScreen('ranking')">Ranking</button>
       <button class="nav-btn hidden" id="nav-admin" onclick="showScreen('admin')">Admin</button>
     </div>
@@ -218,6 +219,24 @@
       </div>
       <div id="alumno-mes-wrap"></div>
       <div id="lista-ranking"></div>
+    </div>
+
+    <!-- CALENDARIO -->
+    <div id="screen-calendario" class="screen">
+      <div id="horas-bar" style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:12px;padding:14px 16px;margin-bottom:14px"></div>
+      <div style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:12px;padding:14px 16px;margin-bottom:14px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+          <button onclick="cambiarMes(-1)" style="background:none;border:1px solid #2a2a2a;border-radius:8px;padding:6px 12px;color:#888;cursor:pointer;font-size:16px;font-family:inherit">‹</button>
+          <div id="cal-mes-label" style="font-size:15px;font-weight:700;color:#fff"></div>
+          <button onclick="cambiarMes(1)" style="background:none;border:1px solid #2a2a2a;border-radius:8px;padding:6px 12px;color:#888;cursor:pointer;font-size:16px;font-family:inherit">›</button>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:8px">
+          <div style="text-align:center;font-size:10px;font-weight:700;color:#555;padding:4px 0">L</div><div style="text-align:center;font-size:10px;font-weight:700;color:#555;padding:4px 0">M</div><div style="text-align:center;font-size:10px;font-weight:700;color:#555;padding:4px 0">X</div><div style="text-align:center;font-size:10px;font-weight:700;color:#555;padding:4px 0">J</div><div style="text-align:center;font-size:10px;font-weight:700;color:#555;padding:4px 0">V</div><div style="text-align:center;font-size:10px;font-weight:700;color:#555;padding:4px 0">S</div><div style="text-align:center;font-size:10px;font-weight:700;color:#555;padding:4px 0">D</div>
+        </div>
+        <div id="cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px"></div>
+      </div>
+      <div class="section-title">Clases este mes</div>
+      <div id="cal-clases-list"></div>
     </div>
 
     <!-- PERFIL -->
@@ -445,6 +464,7 @@ function showScreen(name) {
   if (name==='ranking') loadRanking();
   if (name==='admin') loadAdmin();
   if (name==='perfil') loadPerfil();
+  if (name==='calendario') loadCalendario();
 }
 
 async function uploadFoto(event) {
@@ -1163,7 +1183,10 @@ function renderSociosList(socios) {
         <div class="person-sub">${s.visitas_mes} visitas este mes · ${s.visitas_total} total</div>
       </div>
       <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end">
+        <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end">
+        <button onclick="editarHoras('${s.id}','${s.nombre}',${s.horas_mes||0})" style="border:1px solid #2a2a2a;border-radius:6px;padding:3px 8px;font-size:10px;cursor:pointer;background:none;color:#e63946;font-family:inherit">⏱ ${s.horas_mes||0}h/mes</button>
         ${s.rol!=='admin'?`<button onclick="hacerAdmin('${s.id}')" style="border:1px solid #2a2a2a;border-radius:6px;padding:3px 8px;font-size:10px;cursor:pointer;background:none;color:#888;font-family:inherit">Admin</button>`:'<span style="font-size:10px;color:#e63946;font-weight:700">Admin</span>'}
+      </div>
       </div>
     </div></div>`;
   }).join('') || '<div style="text-align:center;padding:1rem;color:#555;font-size:13px">No se encontraron socios</div>';
@@ -1218,6 +1241,128 @@ function abrirFoto(url, nombre, disc) {
   document.getElementById('modal-foto-disc').textContent = disc;
   document.getElementById('modal-foto-disc').style.color = d.color;
   document.getElementById('modal-foto-bg').style.display = 'flex';
+}
+
+
+let calYear = new Date().getFullYear();
+let calMonth = new Date().getMonth();
+
+function cambiarMes(dir) {
+  calMonth += dir;
+  if (calMonth > 11) { calMonth = 0; calYear++; }
+  if (calMonth < 0) { calMonth = 11; calYear--; }
+  loadCalendario();
+}
+
+async function loadCalendario() {
+  const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  document.getElementById('cal-mes-label').textContent = MESES[calMonth] + ' ' + calYear;
+
+  const mesStr = calYear + '-' + String(calMonth+1).padStart(2,'0');
+  const primerDia = new Date(calYear, calMonth, 1);
+  const ultimoDia = new Date(calYear, calMonth+1, 0).getDate();
+  const startDow = (primerDia.getDay()+6)%7; // Monday=0
+
+  // Get checkins this month
+  const {data:checkins} = await db.from('checkins')
+    .select('fecha,tipo').eq('usuario_id',currentUser.id)
+    .gte('fecha', mesStr+'-01').lte('fecha', mesStr+'-'+String(ultimoDia).padStart(2,'0'));
+
+  // Get reservas with class info
+  const {data:reservas} = await db.from('reservas')
+    .select('clase_id, clases(nombre,dia,hora,color,duracion)')
+    .eq('usuario_id', currentUser.id);
+
+  // Build set of days with checkins
+  const checkinDays = {};
+  checkins?.forEach(c => {
+    const day = parseInt(c.fecha.split('-')[2]);
+    if (!checkinDays[day]) checkinDays[day] = [];
+    checkinDays[day].push(c.tipo||'Clase');
+  });
+
+  // Hours bar
+  const horasMes = currentProfile?.horas_mes || 0;
+  const horasUsadas = checkins?.length || 0;
+  const horasRestantes = Math.max(0, horasMes - horasUsadas);
+  const pct = horasMes > 0 ? Math.min(100, Math.round(horasUsadas/horasMes*100)) : 0;
+  const colorBarra = pct >= 100 ? '#e63946' : pct >= 75 ? '#FF9800' : '#1D9E75';
+
+  const horasEl = document.getElementById('horas-bar');
+  if (horasMes > 0) {
+    horasEl.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div style="font-size:13px;font-weight:700;color:#fff">Horas contratadas este mes</div>
+        <div style="font-size:13px;font-weight:700;color:${colorBarra}">${horasUsadas}/${horasMes}h</div>
+      </div>
+      <div style="background:#2a2a2a;border-radius:6px;height:8px;overflow:hidden;margin-bottom:8px">
+        <div style="width:${pct}%;height:8px;background:${colorBarra};border-radius:6px;transition:width 0.3s"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between">
+        <div style="font-size:12px;color:#555">${horasUsadas} horas usadas</div>
+        <div style="font-size:12px;color:${horasRestantes===0?'#e63946':'#1D9E75'}">${horasRestantes} horas restantes</div>
+      </div>
+      ${horasRestantes===0?'<div style="text-align:center;margin-top:8px;font-size:12px;color:#e63946;font-weight:700">⚠️ Has agotado tus horas este mes</div>':''}`;
+  } else {
+    horasEl.innerHTML = `<div style="text-align:center;color:#555;font-size:13px">Sin tarifa de horas asignada · <a onclick="openDiscModal()" style="color:#e63946;cursor:pointer">Contacta con el gym</a></div>`;
+  }
+
+  // Build calendar grid
+  const grid = document.getElementById('cal-grid');
+  let cells = '';
+  // Empty cells before first day
+  for (let i = 0; i < startDow; i++) {
+    cells += '<div></div>';
+  }
+  const today = new Date();
+  const todayDay = today.getFullYear()===calYear && today.getMonth()===calMonth ? today.getDate() : -1;
+
+  for (let d = 1; d <= ultimoDia; d++) {
+    const hasCheckin = checkinDays[d];
+    const isToday = d === todayDay;
+    const tipos = hasCheckin ? hasCheckin : [];
+    const mainColor = tipos.length > 0 ? (TIPO_COLORS[tipos[0]]||'#e63946') : null;
+    cells += `<div style="aspect-ratio:1;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:default;
+      background:${hasCheckin ? mainColor+'33' : isToday ? '#2a2a2a' : 'transparent'};
+      border:1.5px solid ${hasCheckin ? mainColor : isToday ? '#e63946' : '#2a2a2a'};
+      position:relative">
+      <span style="font-size:12px;font-weight:${isToday?'700':'500'};color:${hasCheckin?mainColor:isToday?'#e63946':'#888'}">${d}</span>
+      ${hasCheckin && hasCheckin.length > 0 ? `<div style="width:5px;height:5px;border-radius:50%;background:${mainColor};margin-top:1px"></div>` : ''}
+    </div>`;
+  }
+  grid.innerHTML = cells;
+
+  // Classes list this month
+  const clasesList = document.getElementById('cal-clases-list');
+  const checkinsSorted = [...(checkins||[])].sort((a,b)=>a.fecha.localeCompare(b.fecha));
+  if (!checkinsSorted.length) {
+    clasesList.innerHTML = '<div style="text-align:center;padding:2rem;color:#555;font-size:13px">No hay asistencias este mes</div>';
+  } else {
+    clasesList.innerHTML = checkinsSorted.map(c=>{
+      const color = TIPO_COLORS[c.tipo]||'#888';
+      const d = new Date(c.fecha+'T12:00:00');
+      const label = d.toLocaleDateString('es-ES',{weekday:'short',day:'numeric',month:'short'});
+      return `<div class="card" style="border-left:3px solid ${color}">
+        <div class="card-row">
+          <div style="font-size:20px">${c.tipo==='BJJ'?'🥋':c.tipo==='MMA'?'👊':c.tipo==='Boxeo'?'🥊':c.tipo==='Striking'?'👊':c.tipo==='NoGi'?'🤼':'🏋️'}</div>
+          <div style="flex:1">
+            <div style="font-size:14px;font-weight:600;color:#fff">${c.tipo||'Clase'}</div>
+            <div style="font-size:12px;color:#555">${label}</div>
+          </div>
+          <div style="font-size:12px;color:${color};font-weight:700">1h</div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+}
+
+
+async function editarHoras(userId, nombre, horasActuales) {
+  const nuevas = prompt('Horas mensuales contratadas para ' + nombre + ':', horasActuales);
+  if (nuevas === null || isNaN(nuevas)) return;
+  await db.from('profiles').update({horas_mes: parseInt(nuevas)}).eq('id', userId);
+  toast('Horas actualizadas para ' + nombre);
+  loadAdmin();
 }
 
 db.auth.onAuthStateChange((event, session) => {
