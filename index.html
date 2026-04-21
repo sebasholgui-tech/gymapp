@@ -79,6 +79,12 @@
   .color-opt{width:26px;height:26px;border-radius:50%;cursor:pointer;border:3px solid transparent}
   .color-opt.sel{border-color:#fff}
   .me-chip{font-size:11px;background:#0a2a0a;color:#5dba5d;padding:2px 8px;border-radius:20px;margin-left:6px;font-weight:600}
+  .rank-tab{background:#1a1a1a;border:1px solid #2a2a2a;border-radius:20px;padding:6px 14px;font-size:12px;cursor:pointer;color:#888;font-family:inherit;font-weight:600;white-space:nowrap}
+  .rank-tab.active{background:#e63946;border-color:#e63946;color:#fff}
+  .day-tab{background:#1a1a1a;border:1px solid #2a2a2a;border-radius:10px;padding:8px 14px;font-size:12px;cursor:pointer;color:#888;font-family:inherit;font-weight:600;white-space:nowrap;text-align:center;min-width:60px}
+  .day-tab.active{background:#e63946;border-color:#e63946;color:#fff}
+  .day-tab-day{font-size:10px;display:block}
+  .fire{color:#ff6b00;font-size:14px}
 </style>
 </head>
 <body>
@@ -148,24 +154,50 @@
 
     <!-- INICIO -->
     <div id="screen-inicio" class="screen show">
-      <div class="stats-grid">
-        <div class="stat-card"><div class="stat-label">Mis visitas</div><div class="stat-value" id="mis-visitas">—</div></div>
-        <div class="stat-card"><div class="stat-label">Este mes</div><div class="stat-value" id="visitas-mes">—</div></div>
-        <div class="stat-card"><div class="stat-label">Mi puesto</div><div class="stat-value" id="mi-puesto">—</div></div>
+      <div id="profile-bar" style="display:flex;align-items:center;gap:14px;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:12px;padding:14px 16px;margin-bottom:1.25rem">
+        <div style="position:relative">
+          <div id="avatar-circle" style="width:52px;height:52px;border-radius:50%;background:#2a0a0a;border:2px solid #e63946;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:#e63946;overflow:hidden;cursor:pointer" onclick="document.getElementById('foto-input').click()">
+            <span id="avatar-initials"></span>
+            <img id="avatar-img" style="display:none;width:100%;height:100%;object-fit:cover">
+          </div>
+          <div style="position:absolute;bottom:-2px;right:-2px;background:#e63946;border-radius:50%;width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:10px;cursor:pointer" onclick="document.getElementById('foto-input').click()">+</div>
+          <input type="file" id="foto-input" accept="image/*" style="display:none" onchange="uploadFoto(event)">
+        </div>
+        <div style="flex:1">
+          <div style="font-size:16px;font-weight:700;color:#fff" id="profile-name"></div>
+          <div style="font-size:12px;color:#555;margin-top:2px" id="profile-role"></div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:11px;color:#555">Este mes</div>
+          <div style="font-size:22px;font-weight:700;color:#e63946" id="visitas-mes">—</div>
+        </div>
       </div>
-      <button class="checkin-big" onclick="doCheckin()">Registrar entrada</button>
-      <div class="section-title">Últimas entradas</div>
+      <div class="stats-grid">
+        <div class="stat-card"><div class="stat-label">Total clases</div><div class="stat-value" id="mis-visitas">—</div></div>
+        <div class="stat-card"><div class="stat-label">Mi puesto</div><div class="stat-value" id="mi-puesto">—</div></div>
+        <div class="stat-card"><div class="stat-label">Disciplina</div><div class="stat-value" id="mi-disciplina" style="font-size:14px">—</div></div>
+      </div>
+      <div id="clase-ahora-wrap" style="margin-bottom:1.25rem"></div>
+      <div class="section-title">Últimas asistencias</div>
       <div id="ultimas-entradas"></div>
     </div>
 
     <!-- CLASES -->
     <div id="screen-clases" class="screen">
+      <div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:8px;margin-bottom:14px" id="day-tabs"></div>
       <div id="lista-clases"></div>
     </div>
 
     <!-- RANKING -->
     <div id="screen-ranking" class="screen">
-      <div class="section-title">Ranking del mes — más visitas</div>
+      <div style="display:flex;gap:6px;margin-bottom:14px;overflow-x:auto;padding-bottom:4px" id="rank-tabs">
+        <button class="rank-tab active" onclick="showRankTab('MMA',this)">MMA</button>
+        <button class="rank-tab" onclick="showRankTab('BJJ',this)">BJJ</button>
+        <button class="rank-tab" onclick="showRankTab('NoGi',this)">NoGi</button>
+        <button class="rank-tab" onclick="showRankTab('Striking',this)">Striking</button>
+        <button class="rank-tab" onclick="showRankTab('Kids',this)">Kids</button>
+        <button class="rank-tab" onclick="showRankTab('General',this)">General</button>
+      </div>
       <div id="lista-ranking"></div>
     </div>
 
@@ -223,6 +255,65 @@ let selColor = CLASE_COLORS[0];
 let currentUser = null;
 let currentProfile = null;
 let reservasUsuario = [];
+
+const HORARIO = {
+  'Lunes': [
+    {hora:'09:40',fin:'11:00',nombre:'MMA',detalle:'Inic/Avan Grupo 1',tipo:'MMA',plazas:20},
+    {hora:'17:30',fin:'18:30',nombre:'MMA Kids',detalle:'',tipo:'Kids',plazas:15},
+    {hora:'17:30',fin:'18:30',nombre:'Competición',detalle:'',tipo:'MMA',plazas:20},
+    {hora:'18:30',fin:'19:30',nombre:'Jiu Jitsu Adult',detalle:'GK1/GK2/GK3 BJJ',tipo:'BJJ',plazas:20},
+    {hora:'18:30',fin:'19:30',nombre:'Striking',detalle:'Kick Boxing-K1-Thai',tipo:'Striking',plazas:20},
+    {hora:'19:30',fin:'20:30',nombre:'MMA Grupo 2',detalle:'Inic/Avan',tipo:'MMA',plazas:20},
+    {hora:'20:30',fin:'22:00',nombre:'MMA Grupo 3',detalle:'Inic/Avan',tipo:'MMA',plazas:20},
+  ],
+  'Martes': [
+    {hora:'10:00',fin:'11:00',nombre:'Jiu Jitsu GK BJJ',detalle:'GK1/GK2/GK3',tipo:'BJJ',plazas:20},
+    {hora:'17:30',fin:'18:30',nombre:'Jiu Jitsu Infantil BJJ',detalle:'',tipo:'Kids',plazas:15},
+    {hora:'17:30',fin:'18:30',nombre:'Competición',detalle:'',tipo:'MMA',plazas:20},
+    {hora:'18:30',fin:'19:30',nombre:'MMA Grupo 4',detalle:'Inic/Avan',tipo:'MMA',plazas:20},
+    {hora:'19:30',fin:'20:30',nombre:'Grappling/Lucha',detalle:'',tipo:'NoGi',plazas:20},
+    {hora:'19:30',fin:'20:30',nombre:'Boxeo',detalle:'',tipo:'Striking',plazas:20},
+    {hora:'20:30',fin:'21:30',nombre:'Striking',detalle:'Kick Boxing-K1-Thai',tipo:'Striking',plazas:20},
+    {hora:'20:30',fin:'21:30',nombre:'Jiu Jitsu Adult BJJ',detalle:'GK1/GK2/GK3',tipo:'BJJ',plazas:20},
+    {hora:'21:30',fin:'22:00',nombre:'Open Mat BJJ',detalle:'GK2/GK3',tipo:'BJJ',plazas:30},
+  ],
+  'Miércoles': [
+    {hora:'09:40',fin:'11:00',nombre:'MMA',detalle:'Inic/Avan Grupo 1',tipo:'MMA',plazas:20},
+    {hora:'17:30',fin:'18:30',nombre:'MMA Kids',detalle:'',tipo:'Kids',plazas:15},
+    {hora:'17:30',fin:'18:30',nombre:'Competición',detalle:'',tipo:'MMA',plazas:20},
+    {hora:'18:30',fin:'19:30',nombre:'Jiu Jitsu Adult',detalle:'GK1/GK2/GK3 BJJ',tipo:'BJJ',plazas:20},
+    {hora:'18:30',fin:'19:30',nombre:'Striking',detalle:'Kick Boxing-K1-Thai',tipo:'Striking',plazas:20},
+    {hora:'19:30',fin:'20:30',nombre:'MMA Grupo 2',detalle:'Inic/Avan',tipo:'MMA',plazas:20},
+    {hora:'20:30',fin:'22:00',nombre:'MMA Grupo 3',detalle:'Inic/Avan',tipo:'MMA',plazas:20},
+    {hora:'20:30',fin:'22:00',nombre:'MMA',detalle:'',tipo:'MMA',plazas:20},
+  ],
+  'Jueves': [
+    {hora:'10:00',fin:'11:00',nombre:'Jiu Jitsu GK BJJ',detalle:'GK1/GK2/GK3',tipo:'BJJ',plazas:20},
+    {hora:'17:30',fin:'18:30',nombre:'Jiu Jitsu Infantil BJJ',detalle:'',tipo:'Kids',plazas:15},
+    {hora:'17:30',fin:'18:30',nombre:'Competición',detalle:'',tipo:'MMA',plazas:20},
+    {hora:'18:30',fin:'19:30',nombre:'MMA Grupo 4',detalle:'Inic/Avan',tipo:'MMA',plazas:20},
+    {hora:'19:30',fin:'20:30',nombre:'Grappling/Lucha',detalle:'',tipo:'NoGi',plazas:20},
+    {hora:'19:30',fin:'20:30',nombre:'Boxeo',detalle:'',tipo:'Striking',plazas:20},
+    {hora:'20:30',fin:'21:30',nombre:'Striking',detalle:'Kick Boxing-K1-Thai',tipo:'Striking',plazas:20},
+    {hora:'20:30',fin:'21:30',nombre:'Jiu Jitsu Adult BJJ',detalle:'GK1/GK2/GK3',tipo:'BJJ',plazas:20},
+    {hora:'21:30',fin:'22:00',nombre:'Open Mat BJJ',detalle:'GK2/GK3',tipo:'BJJ',plazas:30},
+  ],
+  'Viernes': [
+    {hora:'17:30',fin:'21:00',nombre:'Open Mat',detalle:'',tipo:'NoGi',plazas:30},
+    {hora:'17:30',fin:'21:00',nombre:'BJJ GK2/GK3',detalle:'',tipo:'BJJ',plazas:20},
+    {hora:'17:30',fin:'21:00',nombre:'MMA Avanzado',detalle:'',tipo:'MMA',plazas:20},
+    {hora:'17:30',fin:'21:00',nombre:'Striking',detalle:'',tipo:'Striking',plazas:20},
+    {hora:'17:30',fin:'21:00',nombre:'Grappling/Lucha',detalle:'',tipo:'NoGi',plazas:20},
+  ],
+  'Sábado': [
+    {hora:'18:00',fin:'21:00',nombre:'Briefing Competición',detalle:'A conveniencia del equipo',tipo:'MMA',plazas:30},
+    {hora:'18:30',fin:'20:30',nombre:'Simulación Competición',detalle:'A conveniencia del equipo',tipo:'MMA',plazas:30},
+  ],
+};
+const TIPO_COLORS={'MMA':'#e63946','BJJ':'#2196F3','NoGi':'#9C27B0','Striking':'#FF9800','Kids':'#4CAF50','General':'#aaa'};
+const DIAS=['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+let selectedDay=DIAS[Math.min((new Date().getDay()+6)%7,5)];
+let currentRankTab='MMA';
 
 function toast(msg, dur=2500) {
   const t = document.getElementById('toast');
@@ -314,134 +405,263 @@ function showScreen(name) {
   if (name==='admin') loadAdmin();
 }
 
+async function uploadFoto(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const ext = file.name.split('.').pop();
+  const path = currentUser.id + '.' + ext;
+  const {error} = await db.storage.from('avatars').upload(path, file, {upsert:true});
+  if (error) { toast('Error al subir foto'); return; }
+  const {data} = db.storage.from('avatars').getPublicUrl(path);
+  await db.from('profiles').update({avatar_url: data.publicUrl}).eq('id', currentUser.id);
+  currentProfile.avatar_url = data.publicUrl;
+  showAvatar(data.publicUrl);
+  toast('Foto actualizada');
+}
+
+function showAvatar(url) {
+  const img = document.getElementById('avatar-img');
+  const initials = document.getElementById('avatar-initials');
+  if (url) {
+    img.src = url + '?t=' + Date.now();
+    img.style.display = 'block';
+    initials.style.display = 'none';
+  } else {
+    img.style.display = 'none';
+    initials.style.display = 'block';
+  }
+}
+
+function getClaseActual() {
+  const now = new Date();
+  const dow = now.getDay();
+  const diasMap = {1:'Lunes',2:'Martes',3:'Miércoles',4:'Jueves',5:'Viernes',6:'Sábado'};
+  const diaHoy = diasMap[dow];
+  if (!diaHoy || !HORARIO[diaHoy]) return null;
+  const hh = now.getHours();
+  const mm = now.getMinutes();
+  const minActual = hh * 60 + mm;
+  for (const cl of HORARIO[diaHoy]) {
+    const [h1,m1] = cl.hora.split(':').map(Number);
+    const [h2,m2] = cl.fin.split(':').map(Number);
+    const inicio = h1*60+m1;
+    const fin = h2*60+m2;
+    if (minActual >= inicio - 15 && minActual <= fin) return {...cl, dia: diaHoy};
+  }
+  return null;
+}
+
 async function loadInicio() {
   const hoy = new Date().toISOString().split('T')[0];
   const mes = new Date().toISOString().slice(0,7);
 
   const {data:total} = await db.from('checkins').select('id').eq('usuario_id', currentUser.id);
   const {data:mesData} = await db.from('checkins').select('id').eq('usuario_id', currentUser.id).gte('fecha', mes+'-01');
-  const {data:ultimas} = await db.from('checkins').select('fecha,created_at').eq('usuario_id', currentUser.id).order('created_at',{ascending:false}).limit(5);
+  const {data:ultimas} = await db.from('checkins').select('fecha,tipo,created_at').eq('usuario_id', currentUser.id).order('created_at',{ascending:false}).limit(5);
 
   document.getElementById('mis-visitas').textContent = total?.length || 0;
   document.getElementById('visitas-mes').textContent = mesData?.length || 0;
 
+  // Profile
+  document.getElementById('profile-name').textContent = currentProfile?.nombre || '';
+  document.getElementById('profile-role').textContent = currentProfile?.rol === 'admin' ? 'Administrador' : 'Socio TMC';
+  const initEl = document.getElementById('avatar-initials');
+  initEl.textContent = (currentProfile?.nombre||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+  showAvatar(currentProfile?.avatar_url);
+
+  // Disciplina más frecuente
+  if (total?.length) {
+    const {data:tipos} = await db.from('checkins').select('tipo').eq('usuario_id', currentUser.id).not('tipo','is',null);
+    if (tipos?.length) {
+      const freq = {};
+      tipos.forEach(t=>freq[t.tipo]=(freq[t.tipo]||0)+1);
+      const top = Object.entries(freq).sort((a,b)=>b[1]-a[1])[0];
+      document.getElementById('mi-disciplina').textContent = top?.[0] || '—';
+    }
+  }
+
+  // Clase actual
+  const claseAhora = getClaseActual();
+  const wrapEl = document.getElementById('clase-ahora-wrap');
+  if (claseAhora) {
+    const color = TIPO_COLORS[claseAhora.tipo]||'#e63946';
+    wrapEl.innerHTML = `
+      <div style="background:#1a1a1a;border:1px solid ${color}44;border-left:3px solid ${color};border-radius:12px;padding:14px 16px;margin-bottom:10px">
+        <div style="font-size:11px;color:${color};font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">Clase en curso ahora</div>
+        <div style="font-size:16px;font-weight:700;color:#fff;margin-bottom:2px">${claseAhora.nombre}</div>
+        <div style="font-size:12px;color:#555;margin-bottom:12px">${claseAhora.hora}–${claseAhora.fin} · ${claseAhora.tipo}</div>
+        <button class="checkin-big" style="margin-bottom:0" onclick="doCheckin()">Registrar asistencia</button>
+      </div>`;
+  } else {
+    wrapEl.innerHTML = `
+      <div style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:12px;padding:14px 16px;text-align:center">
+        <div style="font-size:13px;color:#555;margin-bottom:4px">No hay clase en este momento</div>
+        <div style="font-size:11px;color:#333">El botón de asistencia aparece 15 min antes de cada clase</div>
+      </div>`;
+  }
+
+  // Últimas entradas
   const el = document.getElementById('ultimas-entradas');
-  if (!ultimas?.length) { el.innerHTML = '<div style="text-align:center;padding:2rem;color:#aaa;font-size:14px">Aún no tienes entradas registradas</div>'; }
-  else {
-    el.innerHTML = ultimas.map(c=>`<div class="card"><div class="card-row"><div style="width:8px;height:8px;border-radius:50%;background:#1D9E75;flex-shrink:0"></div><div class="person-info"><div class="person-name">${formatDate(c.fecha)}</div><div class="person-sub">${formatTime(c.created_at)}</div></div></div></div>`).join('');
+  if (!ultimas?.length) {
+    el.innerHTML = '<div style="text-align:center;padding:2rem;color:#333;font-size:14px">Aún no tienes asistencias</div>';
+  } else {
+    el.innerHTML = ultimas.map(c=>{
+      const color = TIPO_COLORS[c.tipo]||'#555';
+      return `<div class="card"><div class="card-row">
+        <div style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0"></div>
+        <div class="person-info">
+          <div class="person-name">${formatDate(c.fecha)}</div>
+          <div class="person-sub">${c.tipo||'Clase'} · ${formatTime(c.created_at)}</div>
+        </div>
+      </div></div>`;
+    }).join('');
   }
   await loadPuesto();
 }
 
-async function loadPuesto() {
-  const mes = new Date().toISOString().slice(0,7);
-  const {data} = await db.from('checkins').select('usuario_id').gte('fecha', mes+'-01');
-  if (!data) return;
-  const counts = {};
-  data.forEach(r=>counts[r.usuario_id]=(counts[r.usuario_id]||0)+1);
-  const sorted = Object.entries(counts).sort((a,b)=>b[1]-a[1]);
-  const pos = sorted.findIndex(([id])=>id===currentUser.id);
-  document.getElementById('mi-puesto').textContent = pos>=0 ? '#'+(pos+1) : '—';
-}
-
 async function doCheckin() {
   const hoy = new Date().toISOString().split('T')[0];
-  const {data:existing} = await db.from('checkins').select('id').eq('usuario_id',currentUser.id).eq('fecha',hoy);
-  if (existing?.length) { toast('Ya registraste entrada hoy'); return; }
-  const {error} = await db.from('checkins').insert({usuario_id:currentUser.id, fecha:hoy});
+  const claseAhora = getClaseActual();
+  if (!claseAhora) { toast('No hay clase en este momento'); return; }
+
+  const {data:existing} = await db.from('checkins').select('id')
+    .eq('usuario_id',currentUser.id).eq('fecha',hoy).eq('tipo',claseAhora.tipo);
+  if (existing?.length) { toast('Ya registraste asistencia en esta clase hoy'); return; }
+
+  const {error} = await db.from('checkins').insert({
+    usuario_id: currentUser.id,
+    fecha: hoy,
+    tipo: claseAhora.tipo
+  });
   if (error) { toast('Error al registrar'); return; }
-  toast('Entrada registrada. ¡A por ello!');
+  toast('Asistencia registrada en ' + claseAhora.nombre + '!');
   loadInicio();
 }
 
+
 async function loadClases() {
-  const {data:clases} = await db.from('clases').select('*').order('hora');
-  const {data:reservas} = await db.from('reservas').select('clase_id').eq('usuario_id',currentUser.id);
-  reservasUsuario = reservas?.map(r=>r.clase_id) || [];
-
-  const {data:todasReservas} = await db.from('reservas').select('clase_id');
-  const conteo = {};
-  todasReservas?.forEach(r=>conteo[r.clase_id]=(conteo[r.clase_id]||0)+1);
-
-  const el = document.getElementById('lista-clases');
-  if (!clases?.length) { el.innerHTML='<div style="text-align:center;padding:2rem;color:#aaa;font-size:14px">No hay clases disponibles</div>'; return; }
-
-  el.innerHTML = clases.map(cl=>{
-    const ocupadas = conteo[cl.id]||0;
-    const libres = cl.plazas - ocupadas;
-    const reservado = reservasUsuario.includes(cl.id);
-    const lleno = libres <= 0 && !reservado;
-    const pct = Math.min(100, Math.round(ocupadas/cl.plazas*100));
-    return `<div class="card">
+  const tabsEl=document.getElementById('day-tabs');
+  if(tabsEl) tabsEl.innerHTML=DIAS.map(d=>`<button class="day-tab${d===selectedDay?' active':''}" onclick="selectDay('${d}')">${d.slice(0,3)}</button>`).join('');
+  const clases=HORARIO[selectedDay]||[];
+  const el=document.getElementById('lista-clases');
+  if(!clases.length){el.innerHTML='<div style="text-align:center;padding:2rem;color:#555">No hay clases este día</div>';return;}
+  const {data:reservas}=await db.from('reservas').select('clase_id').eq('usuario_id',currentUser.id);
+  const {data:todasR}=await db.from('reservas').select('clase_id');
+  const {data:dbClases}=await db.from('clases').select('*');
+  const reservaIds=new Set(reservas?.map(r=>r.clase_id)||[]);
+  const conteo={};todasR?.forEach(r=>conteo[r.clase_id]=(conteo[r.clase_id]||0)+1);
+  const dbMap={};dbClases?.forEach(c=>dbMap[c.dia+'-'+c.hora+'-'+c.nombre]=c);
+  el.innerHTML=clases.map(cl=>{
+    const dbCl=dbMap[selectedDay+'-'+cl.hora+'-'+cl.nombre];
+    const clId=dbCl?.id||null;
+    const ocupadas=clId?(conteo[clId]||0):0;
+    const libres=cl.plazas-ocupadas;
+    const reservado=clId&&reservaIds.has(clId);
+    const lleno=libres<=0&&!reservado;
+    const pct=Math.min(100,Math.round(ocupadas/cl.plazas*100));
+    const color=TIPO_COLORS[cl.tipo]||'#888';
+    const onclk=!clId?`toast('Clase sin reserva online')`:(lleno&&!reservado?'':`toggleReservaClase('${clId}')`);
+    return `<div class="card" style="border-left:3px solid ${color}">
       <div class="clase-header">
-        <div class="clase-stripe" style="background:${cl.color||'#7F77DD'}"></div>
         <div style="flex:1">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+            <span style="font-size:11px;font-weight:700;color:${color};background:${color}22;padding:2px 8px;border-radius:20px">${cl.tipo}</span>
+            <span style="font-size:12px;color:#555">${cl.hora}–${cl.fin}</span>
+          </div>
           <div class="clase-name">${cl.nombre}</div>
-          <div class="clase-meta">${cl.dia||''} ${cl.hora||''} · ${cl.duracion||''} · ${cl.instructor||''}</div>
+          ${cl.detalle?`<div class="clase-meta">${cl.detalle}</div>`:''}
           <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
-            <div class="bar-wrap" style="max-width:120px"><div class="bar-fill" style="width:${pct}%;background:${cl.color||'#7F77DD'}"></div></div>
-            <span style="font-size:11px;color:#aaa">${ocupadas}/${cl.plazas}</span>
-            ${lleno?'<span class="badge-lleno">Lleno</span>':''}
+            <div class="bar-wrap" style="max-width:100px"><div class="bar-fill" style="width:${pct}%;background:${color}"></div></div>
+            <span style="font-size:11px;color:#555">${ocupadas}/${cl.plazas}</span>
+            ${lleno&&!reservado?'<span class="badge-lleno">Lleno</span>':''}
           </div>
         </div>
-        <div style="text-align:right">
-          <div class="clase-plazas"><span>${libres<0?0:libres}</span>libres</div>
-          <button class="btn-reservar ${reservado?'reservado':lleno?'lleno':''}" onclick="${lleno&&!reservado?'':('toggleReserva("'+cl.id+'")')}">
-            ${reservado?'Apuntado ✓':lleno?'Lleno':'Apuntarme'}
+        <div style="text-align:right;flex-shrink:0">
+          <div class="clase-plazas"><span style="color:${color}">${Math.max(0,libres)}</span>libres</div>
+          <button class="btn-reservar ${reservado?'reservado':(lleno&&!reservado?'lleno':'')}" onclick="${onclk}">
+            ${reservado?'Apuntado ✓':(lleno&&!reservado?'Lleno':'Apuntarme')}
           </button>
         </div>
       </div>
     </div>`;
   }).join('');
 }
-
-async function toggleReserva(claseId) {
-  if (reservasUsuario.includes(claseId)) {
-    await db.from('reservas').delete().eq('usuario_id',currentUser.id).eq('clase_id',claseId);
-    toast('Te has desapuntado');
-  } else {
-    await db.from('reservas').insert({usuario_id:currentUser.id, clase_id:claseId});
-    toast('Apuntado a la clase');
-  }
+function selectDay(d){selectedDay=d;loadClases();}
+async function toggleReservaClase(claseId){
+  const {data:ex}=await db.from('reservas').select('id').eq('usuario_id',currentUser.id).eq('clase_id',claseId);
+  if(ex?.length){await db.from('reservas').delete().eq('usuario_id',currentUser.id).eq('clase_id',claseId);toast('Desapuntado');}
+  else{await db.from('reservas').insert({usuario_id:currentUser.id,clase_id:claseId});toast('Apuntado!');}
   loadClases();
+}
+
+
+function showRankTab(tipo, btn) {
+  currentRankTab = tipo;
+  document.querySelectorAll('.rank-tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  loadRanking();
 }
 
 async function loadRanking() {
   const mes = new Date().toISOString().slice(0,7);
-  const {data:checkins} = await db.from('checkins').select('usuario_id').gte('fecha',mes+'-01');
+  const el = document.getElementById('lista-ranking');
+  el.innerHTML = '<div style="text-align:center;padding:1rem;color:#555;font-size:13px">Cargando...</div>';
+
   const {data:profiles} = await db.from('profiles').select('id,nombre');
-  if (!checkins||!profiles) return;
-
-  const counts = {};
-  checkins.forEach(r=>counts[r.usuario_id]=(counts[r.usuario_id]||0)+1);
   const profileMap = {};
-  profiles.forEach(p=>profileMap[p.id]=p.nombre);
+  profiles?.forEach(p=>profileMap[p.id]=p.nombre);
 
-  const sorted = Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  let counts = {};
+
+  if (currentRankTab === 'General') {
+    const {data:checkins} = await db.from('checkins').select('usuario_id').gte('fecha',mes+'-01');
+    checkins?.forEach(r=>counts[r.usuario_id]=(counts[r.usuario_id]||0)+1);
+  } else {
+    // Get classes of this tipo
+    const {data:clases} = await db.from('clases').select('id,nombre').ilike('nombre','%'+currentRankTab+'%');
+    const tipoClases = new Set(clases?.map(c=>c.id)||[]);
+    // Also match by tipo field if exists
+    const {data:reservas} = await db.from('reservas').select('usuario_id,clase_id').gte('created_at',mes+'-01');
+    reservas?.forEach(r=>{
+      if(tipoClases.has(r.clase_id)) counts[r.usuario_id]=(counts[r.usuario_id]||0)+1;
+    });
+    // Fallback: use checkins if no reservas data
+    if(!Object.keys(counts).length) {
+      const {data:checkins} = await db.from('checkins').select('usuario_id').gte('fecha',mes+'-01');
+      checkins?.forEach(r=>counts[r.usuario_id]=(counts[r.usuario_id]||0)+1);
+    }
+  }
+
+  const sorted = Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,15);
   const max = sorted[0]?.[1]||1;
   const medals = ['g','s','b'];
+  const color = TIPO_COLORS[currentRankTab]||'#e63946';
 
-  const el = document.getElementById('lista-ranking');
-  if (!sorted.length) { el.innerHTML='<div style="text-align:center;padding:2rem;color:#aaa;font-size:14px">Aún no hay datos este mes</div>'; return; }
+  if (!sorted.length) {
+    el.innerHTML='<div style="text-align:center;padding:2rem;color:#555;font-size:14px">Aún no hay datos este mes</div>';
+    return;
+  }
 
-  el.innerHTML = sorted.map(([id,visitas],i)=>{
+  el.innerHTML = `<div style="font-size:11px;color:#555;text-align:right;margin-bottom:8px">Clases este mes</div>` +
+  sorted.map(([id,clases],i)=>{
     const isMe = id===currentUser.id;
-    const initials = (profileMap[id]||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
-    const pct = Math.round(visitas/max*100);
-    return `<div class="card" style="${isMe?'border:1.5px solid #5DCAA5':''}">
+    const nombre = profileMap[id]||'Socio';
+    const initials = nombre.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+    const pct = Math.round(clases/max*100);
+    const fires = i===0?'🔥🔥🔥':i===1?'🔥🔥':i===2?'🔥':'';
+    return `<div class="card" style="${isMe?'border:1.5px solid '+color:''}">
       <div class="card-row">
         <div class="rank-num ${medals[i]||''}">${i+1}°</div>
-        <div class="avatar">${initials}</div>
+        <div class="avatar" style="background:${color}22;color:${color}">${initials}</div>
         <div style="flex:1">
-          <div class="person-name">${profileMap[id]||'Socio'}${isMe?'<span class="me-chip">Tú</span>':''}</div>
-          <div class="bar-wrap" style="margin-top:5px"><div class="bar-fill" style="width:${pct}%"></div></div>
+          <div class="person-name">${nombre}${isMe?'<span class="me-chip">Tú</span>':''}${fires?'<span style="font-size:14px;margin-left:4px">'+fires+'</span>':''}</div>
+          <div class="bar-wrap" style="margin-top:5px"><div class="bar-fill" style="width:${pct}%;background:${color}"></div></div>
         </div>
-        <div class="visits-badge">${visitas} visitas</div>
+        <div class="visits-badge" style="color:${color}">${clases} clases</div>
       </div>
     </div>`;
   }).join('');
 }
-
 async function loadAdmin() {
   const hoy = new Date().toISOString().split('T')[0];
   const {data:hoyData} = await db.from('checkins').select('id').eq('fecha',hoy);
