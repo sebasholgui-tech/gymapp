@@ -177,7 +177,7 @@
           <div style="font-size:12px;color:#555;margin-top:2px" id="profile-role"></div>
           <div style="display:flex;align-items:center;gap:6px;margin-top:6px;flex-wrap:wrap">
             <div id="disc-display" style="cursor:pointer" onclick="openDiscModal()"></div>
-            <div id="belt-display" style="cursor:pointer" onclick="openBeltModal()"></div>
+            <div id="belt-display" style="cursor:pointer;display:none" onclick="openBeltModal()"></div>
           </div>
         </div>
         <div style="text-align:right">
@@ -485,15 +485,25 @@ async function loadInicio() {
   document.getElementById('profile-name').textContent = currentProfile?.nombre || '';
   document.getElementById('profile-role').textContent = currentProfile?.rol === 'admin' ? 'Administrador' : 'Socio TMC';
   const beltEl = document.getElementById('belt-display');
-  if (beltEl) beltEl.innerHTML = beltHTML(currentProfile?.cinturon_bjj||'blanco', currentProfile?.galones_bjj||0) + '<span style="font-size:10px;color:#444;margin-left:4px">· cinturón</span>';
+  const disc = currentProfile?.disciplina || 'MMA';
+  const disc2 = currentProfile?.disciplina2 || null;
+  const d = DISCIPLINAS[disc] || DISCIPLINAS.MMA;
+  const d2 = disc2 ? (DISCIPLINAS[disc2] || null) : null;
   const discEl = document.getElementById('disc-display');
   if (discEl) {
-    const disc = currentProfile?.disciplina || 'MMA';
-    const d = DISCIPLINAS[disc] || DISCIPLINAS.MMA;
-    discEl.innerHTML = iconSVG(d.icon, d.color, 28) + '<span style="font-size:10px;color:#444;margin-left:2px">· disciplina</span>';
+    const badge1 = `<span style="display:inline-flex;align-items:center;gap:4px;background:${d.color}22;border:1px solid ${d.color}44;border-radius:20px;padding:3px 8px;font-size:12px;font-weight:700;color:${d.color}">${d.label}</span>`;
+    const badge2 = d2 ? `<span style="display:inline-flex;align-items:center;gap:4px;background:${d2.color}22;border:1px solid ${d2.color}44;border-radius:20px;padding:3px 8px;font-size:12px;font-weight:700;color:${d2.color}">${d2.label}</span>` : '';
+    discEl.innerHTML = `<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">${badge1}${badge2}<span style="font-size:10px;color:#444">· cambiar</span></div>`;
   }
-  // Hide belt if not BJJ
-  if (beltEl) beltEl.style.display = (currentProfile?.disciplina === 'BJJ') ? 'inline-flex' : 'none';
+  const hasBJJ = disc === 'BJJ' || disc2 === 'BJJ';
+  if (beltEl) {
+    if (hasBJJ) {
+      beltEl.style.display = 'inline-flex';
+      beltEl.innerHTML = `<div style="display:flex;align-items:center;gap:6px;margin-top:4px">${beltHTML(currentProfile?.cinturon_bjj||'blanco', currentProfile?.galones_bjj||0, 'sm')}<span style="font-size:10px;color:#444">· cinturón</span></div>`;
+    } else {
+      beltEl.style.display = 'none';
+    }
+  }
   const initEl = document.getElementById('avatar-initials');
   initEl.textContent = (currentProfile?.nombre||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
   showAvatar(currentProfile?.avatar_url);
@@ -654,7 +664,7 @@ async function loadRanking() {
   const el = document.getElementById('lista-ranking');
   el.innerHTML = '<div style="text-align:center;padding:1rem;color:#555;font-size:13px">Cargando...</div>';
 
-  const {data:profiles} = await db.from('profiles').select('id,nombre,disciplina,cinturon_bjj,galones_bjj,avatar_url');
+  const {data:profiles} = await db.from('profiles').select('id,nombre,disciplina,disciplina2,cinturon_bjj,galones_bjj,avatar_url');
   const profileMap = {};
   profiles?.forEach(p=>profileMap[p.id]=p);
 
@@ -877,40 +887,18 @@ const DISCIPLINAS = {
   Striking: {label:'Striking', color:'#FF9800', icon:'kick'},
   Boxeo:    {label:'Boxeo',    color:'#FF5722', icon:'boxing'},
 };
+const DISC_KEYS = Object.keys(DISCIPLINAS);
 
 function iconSVG(icon, color, size=28) {
   const s = size;
-  if (icon === 'mma') return `<svg width="${s}" height="${s}" viewBox="0 0 32 32" fill="none">
-    <ellipse cx="16" cy="16" rx="13" ry="13" fill="${color}22" stroke="${color}" stroke-width="1.5"/>
-    <path d="M10 20 Q10 12 16 12 Q22 12 22 18 Q22 22 18 23 L14 23 Q10 23 10 20Z" fill="${color}" opacity="0.9"/>
-    <path d="M14 12 L12 9 Q16 7 20 9 L18 12" fill="${color}"/>
-    <rect x="13" y="22" width="6" height="3" rx="1.5" fill="${color}" opacity="0.7"/>
-  </svg>`;
-  if (icon === 'boxing') return `<svg width="${s}" height="${s}" viewBox="0 0 32 32" fill="none">
-    <ellipse cx="16" cy="16" rx="13" ry="13" fill="${color}22" stroke="${color}" stroke-width="1.5"/>
-    <path d="M9 19 Q9 13 13 12 L20 12 Q24 12 24 17 Q24 21 20 22 L12 22 Q9 22 9 19Z" fill="${color}" opacity="0.85"/>
-    <rect x="9" y="21" width="14" height="3" rx="1.5" fill="${color}" opacity="0.6"/>
-    <path d="M13 12 L13 9 Q16 8 19 9 L19 12" fill="${color}" opacity="0.7"/>
-  </svg>`;
+  if (icon === 'mma' || icon === 'boxing') {
+    const rot = icon === 'boxing' ? '200deg' : '320deg';
+    return `<span style="display:inline-flex;align-items:center;justify-content:center;width:${s}px;height:${s}px;border-radius:50%;background:${color}22;border:1px solid ${color}44;overflow:hidden;flex-shrink:0"><img src="data:image/jpeg;base64,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" style="width:${Math.round(s*1.2)}px;height:${Math.round(s*1.2)}px;object-fit:cover;filter:sepia(1) saturate(4) hue-rotate(${rot})" /></span>`;
+  }
   if (icon === 'belt') return beltHTML('azul', 2, 'sm');
-  if (icon === 'nogi') return `<svg width="${s}" height="${s}" viewBox="0 0 32 32" fill="none">
-    <ellipse cx="16" cy="16" rx="13" ry="13" fill="${color}22" stroke="${color}" stroke-width="1.5"/>
-    <circle cx="16" cy="13" r="4" fill="${color}" opacity="0.85"/>
-    <path d="M8 24 Q8 18 16 18 Q24 18 24 24" stroke="${color}" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0.85"/>
-  </svg>`;
-  if (icon === 'kick') return `<svg width="${s}" height="${s}" viewBox="0 0 32 32" fill="none">
-    <ellipse cx="16" cy="16" rx="13" ry="13" fill="${color}22" stroke="${color}" stroke-width="1.5"/>
-    <circle cx="14" cy="10" r="3" fill="${color}" opacity="0.85"/>
-    <path d="M14 13 L13 18 L10 22" stroke="${color}" stroke-width="2" stroke-linecap="round" fill="none" opacity="0.85"/>
-    <path d="M13 18 L20 16" stroke="${color}" stroke-width="2.5" stroke-linecap="round" fill="none"/>
-    <ellipse cx="22" cy="15" rx="3" ry="2" fill="${color}" opacity="0.7"/>
-  </svg>`;
-  // kids
-  return `<svg width="${s}" height="${s}" viewBox="0 0 32 32" fill="none">
-    <ellipse cx="16" cy="16" rx="13" ry="13" fill="${color}22" stroke="${color}" stroke-width="1.5"/>
-    <circle cx="16" cy="11" r="4" fill="${color}" opacity="0.85"/>
-    <path d="M10 26 Q10 19 16 19 Q22 19 22 26" fill="${color}" opacity="0.7"/>
-  </svg>`;
+  if (icon === 'nogi') return `<svg width="${s}" height="${s}" viewBox="0 0 32 32" fill="none"><ellipse cx="16" cy="16" rx="13" ry="13" fill="${color}22" stroke="${color}" stroke-width="1.5"/><circle cx="16" cy="13" r="4" fill="${color}" opacity="0.85"/><path d="M8 24 Q8 18 16 18 Q24 18 24 24" stroke="${color}" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0.85"/></svg>`;
+  if (icon === 'kick') return `<svg width="${s}" height="${s}" viewBox="0 0 32 32" fill="none"><ellipse cx="16" cy="16" rx="13" ry="13" fill="${color}22" stroke="${color}" stroke-width="1.5"/><circle cx="14" cy="10" r="3" fill="${color}" opacity="0.85"/><path d="M14 13 L13 18 L10 22" stroke="${color}" stroke-width="2" stroke-linecap="round" fill="none" opacity="0.85"/><path d="M13 18 L20 16" stroke="${color}" stroke-width="2.5" stroke-linecap="round" fill="none"/><ellipse cx="22" cy="15" rx="3" ry="2" fill="${color}" opacity="0.7"/></svg>`;
+  return `<svg width="${s}" height="${s}" viewBox="0 0 32 32" fill="none"><ellipse cx="16" cy="16" rx="13" ry="13" fill="${color}22" stroke="${color}" stroke-width="1.5"/><circle cx="16" cy="11" r="4" fill="${color}" opacity="0.85"/><path d="M10 26 Q10 19 16 19 Q22 19 22 26" fill="${color}" opacity="0.7"/></svg>`;
 }
 
 function discBadge(disc) {
@@ -928,26 +916,70 @@ const CINTURONES = {
 
 
 let selDisc = 'MMA';
+let selDisc2 = null;
 
 function openDiscModal() {
   selDisc = currentProfile?.disciplina || 'MMA';
+  selDisc2 = currentProfile?.disciplina2 || null;
+  selCinturon = currentProfile?.cinturon_bjj || 'blanco';
+  selGalones = currentProfile?.galones_bjj || 0;
   renderDiscOptions();
+  renderBeltSelector();
+  renderGalonSelector();
+  renderBeltPreview();
   document.getElementById('modal-disc-bg').style.display = 'flex';
 }
 function closeDiscModal() { document.getElementById('modal-disc-bg').style.display = 'none'; }
 function renderDiscOptions() {
   const el = document.getElementById('disc-options');
-  el.innerHTML = Object.entries(DISCIPLINAS).map(([key,d])=>`
-    <div onclick="selDisc='${key}';renderDiscOptions()" style="cursor:pointer;border:2px solid ${key===selDisc?d.color:'#2a2a2a'};border-radius:10px;padding:10px;text-align:center;background:${key===selDisc?d.color+'22':'#111'}">
-      <div style="margin-bottom:6px">${iconSVG(d.icon,d.color,32)}</div>
-      <div style="font-size:12px;font-weight:700;color:${key===selDisc?d.color:'#888'}">${d.label}</div>
-    </div>`).join('');
+  el.innerHTML = Object.entries(DISCIPLINAS).map(([key,d])=>{
+    const isPrim = key===selDisc;
+    const isSec = key===selDisc2;
+    const isAny = isPrim||isSec;
+    return `<div onclick="toggleDisc('${key}')" style="cursor:pointer;border:2px solid ${isPrim?d.color:isSec?d.color+'88':'#2a2a2a'};border-radius:10px;padding:8px;text-align:center;background:${isPrim?d.color+'33':isSec?d.color+'15':'#111'};position:relative">
+      ${isPrim?`<div style="position:absolute;top:3px;right:4px;font-size:9px;color:${d.color};font-weight:700">1°</div>`:''}
+      ${isSec?`<div style="position:absolute;top:3px;right:4px;font-size:9px;color:${d.color};font-weight:700">2°</div>`:''}
+      <div style="margin-bottom:4px">${iconSVG(d.icon,d.color,26)}</div>
+      <div style="font-size:11px;font-weight:700;color:${isAny?d.color:'#666'}">${d.label}</div>
+    </div>`;
+  }).join('');
+  const beltSection = document.getElementById('belt-in-disc-modal');
+  if (beltSection) beltSection.style.display = (selDisc==='BJJ'||selDisc2==='BJJ') ? 'block' : 'none';
+}
+
+function toggleDisc(key) {
+  if (selDisc === key) {
+    // Deselect primary - promote secondary
+    selDisc = selDisc2 || 'MMA';
+    selDisc2 = null;
+  } else if (selDisc2 === key) {
+    selDisc2 = null;
+  } else if (!selDisc2 && key !== selDisc) {
+    selDisc2 = key;
+  } else {
+    selDisc = key;
+    if (selDisc2 === key) selDisc2 = null;
+  }
+  renderDiscOptions();
+  renderBeltSelector();
+  renderGalonSelector();
+  renderBeltPreview();
 }
 async function saveDisc() {
-  await db.from('profiles').update({disciplina:selDisc}).eq('id',currentUser.id);
+  const updates = {disciplina: selDisc, disciplina2: selDisc2};
+  if (selDisc === 'BJJ' || selDisc2 === 'BJJ') {
+    updates.cinturon_bjj = selCinturon;
+    updates.galones_bjj = selGalones;
+  }
+  await db.from('profiles').update(updates).eq('id', currentUser.id);
   currentProfile.disciplina = selDisc;
+  currentProfile.disciplina2 = selDisc2;
+  if (selDisc === 'BJJ' || selDisc2 === 'BJJ') {
+    currentProfile.cinturon_bjj = selCinturon;
+    currentProfile.galones_bjj = selGalones;
+  }
   closeDiscModal();
-  toast('Disciplina actualizada');
+  toast('Perfil actualizado');
   loadInicio();
 }
 
@@ -1048,8 +1080,16 @@ db.auth.onAuthStateChange((event, session) => {
 <!-- DISCIPLINE MODAL -->
 <div id="modal-disc-bg" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:200;align-items:center;justify-content:center">
   <div style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:16px;padding:24px;width:310px">
-    <div style="font-size:16px;font-weight:700;color:#fff;margin-bottom:16px">Mi disciplina</div>
-    <div id="disc-options" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px"></div>
+    <div style="font-size:16px;font-weight:700;color:#fff;margin-bottom:4px">Mis disciplinas</div>
+    <div style="font-size:12px;color:#555;margin-bottom:12px">Elige hasta 2 (no pueden ser iguales)</div>
+    <div id="disc-options" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px"></div>
+    <div id="belt-in-disc-modal" style="display:none;border-top:1px solid #2a2a2a;padding-top:14px;margin-bottom:14px">
+      <div style="font-size:12px;color:#888;margin-bottom:8px">Cinturón BJJ</div>
+      <div class="belt-selector" id="belt-selector"></div>
+      <div style="font-size:12px;color:#888;margin-bottom:8px">Galones</div>
+      <div class="galon-selector" id="galon-selector"></div>
+      <div id="belt-preview" style="margin-bottom:8px"></div>
+    </div>
     <div style="display:flex;gap:8px;justify-content:flex-end">
       <button class="btn-cancel" onclick="closeDiscModal()">Cancelar</button>
       <button class="btn-save" onclick="saveDisc()">Guardar</button>
@@ -1057,20 +1097,6 @@ db.auth.onAuthStateChange((event, session) => {
   </div>
 </div>
 
-<!-- BELT MODAL -->
-<div id="modal-belt-bg" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:200;align-items:center;justify-content:center">
-  <div style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:16px;padding:24px;width:300px">
-    <div style="font-size:16px;font-weight:700;color:#fff;margin-bottom:16px">Mi cinturón BJJ</div>
-    <div style="font-size:12px;color:#888;margin-bottom:8px">Cinturón</div>
-    <div class="belt-selector" id="belt-selector"></div>
-    <div style="font-size:12px;color:#888;margin-bottom:8px">Galones</div>
-    <div class="galon-selector" id="galon-selector"></div>
-    <div id="belt-preview" style="margin-bottom:16px"></div>
-    <div style="display:flex;gap:8px;justify-content:flex-end">
-      <button class="btn-cancel" onclick="closeBeltModal()">Cancelar</button>
-      <button class="btn-save" onclick="saveBelt()">Guardar</button>
-    </div>
-  </div>
-</div>
+<!-- belt modal removed - now inside disc modal -->
 </body>
 </html>
