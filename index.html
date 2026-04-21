@@ -85,6 +85,15 @@
   .day-tab.active{background:#e63946;border-color:#e63946;color:#fff}
   .day-tab-day{font-size:10px;display:block}
   .fire{color:#ff6b00;font-size:14px}
+  .belt{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700}
+  .galon{width:4px;height:14px;border-radius:1px;background:rgba(255,255,255,0.7)}
+  .galon.negro{background:rgba(0,0,0,0.5)}
+  .belt-selector{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+  .belt-opt{width:32px;height:12px;border-radius:3px;cursor:pointer;border:2px solid transparent}
+  .belt-opt.sel{border-color:#fff}
+  .galon-selector{display:flex;gap:6px;margin-bottom:14px}
+  .galon-opt{width:24px;height:24px;border-radius:50%;border:1.5px solid #2a2a2a;background:#111;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:11px;color:#888;font-weight:700}
+  .galon-opt.sel{border-color:#e63946;color:#fff;background:#2a0a0a}
 </style>
 </head>
 <body>
@@ -166,6 +175,7 @@
         <div style="flex:1">
           <div style="font-size:16px;font-weight:700;color:#fff" id="profile-name"></div>
           <div style="font-size:12px;color:#555;margin-top:2px" id="profile-role"></div>
+          <div id="belt-display" style="margin-top:4px;cursor:pointer" onclick="openBeltModal()"></div>
         </div>
         <div style="text-align:right">
           <div style="font-size:11px;color:#555">Este mes</div>
@@ -410,7 +420,7 @@ async function uploadFoto(event) {
   if (!file) return;
   const ext = file.name.split('.').pop();
   const path = currentUser.id + '.' + ext;
-  const {error} = await db.storage.from('avatars').upload(path, file, {upsert:true});
+  const {error} = await db.storage.from('avatars').upload(path, file, {upsert:true, contentType: file.type});
   if (error) { toast('Error al subir foto'); return; }
   const {data} = db.storage.from('avatars').getPublicUrl(path);
   await db.from('profiles').update({avatar_url: data.publicUrl}).eq('id', currentUser.id);
@@ -465,6 +475,8 @@ async function loadInicio() {
   // Profile
   document.getElementById('profile-name').textContent = currentProfile?.nombre || '';
   document.getElementById('profile-role').textContent = currentProfile?.rol === 'admin' ? 'Administrador' : 'Socio TMC';
+  const beltEl = document.getElementById('belt-display');
+  if (beltEl) beltEl.innerHTML = beltHTML(currentProfile?.cinturon_bjj||'blanco', currentProfile?.galones_bjj||0) + '<span style="font-size:10px;color:#444;margin-left:4px">· toca para cambiar</span>';
   const initEl = document.getElementById('avatar-initials');
   initEl.textContent = (currentProfile?.nombre||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
   showAvatar(currentProfile?.avatar_url);
@@ -646,6 +658,8 @@ async function loadRanking() {
   sorted.map(([id,clases],i)=>{
     const isMe = id===currentUser.id;
     const nombre = profileMap[id]||'Socio';
+    const prof = profiles?.find(p=>p.id===id);
+    const belt = (currentRankTab==='BJJ'&&prof?.cinturon_bjj) ? beltHTML(prof.cinturon_bjj, prof.galones_bjj||0) : '';
     const initials = nombre.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
     const pct = Math.round(clases/max*100);
     const fires = i===0?'🔥🔥🔥':i===1?'🔥🔥':i===2?'🔥':'';
@@ -654,7 +668,7 @@ async function loadRanking() {
         <div class="rank-num ${medals[i]||''}">${i+1}°</div>
         <div class="avatar" style="background:${color}22;color:${color}">${initials}</div>
         <div style="flex:1">
-          <div class="person-name">${nombre}${isMe?'<span class="me-chip">Tú</span>':''}${fires?'<span style="font-size:14px;margin-left:4px">'+fires+'</span>':''}</div>
+          <div class="person-name">${nombre}${isMe?'<span class="me-chip">Tú</span>':''}${fires?'<span style="font-size:14px;margin-left:4px">'+fires+'</span>':''}${belt}</div>
           <div class="bar-wrap" style="margin-top:5px"><div class="bar-fill" style="width:${pct}%;background:${color}"></div></div>
         </div>
         <div class="visits-badge" style="color:${color}">${clases} clases</div>
@@ -776,6 +790,85 @@ async function doResetPassword() {
   }, 2000);
 }
 
+
+const CINTURONES = {
+  blanco:   {color:'#f0f0f0', text:'#222', label:'Blanco'},
+  azul:     {color:'#1565C0', text:'#fff', label:'Azul'},
+  morado:   {color:'#8E24AA', text:'#fff', label:'Morado'},
+  marron:   {color:'#6D4C41', text:'#fff', label:'Marrón'},
+  negro:    {color:'#1a1a1a', text:'#fff', label:'Negro'},
+};
+
+let selCinturon = 'blanco';
+let selGalones = 0;
+
+function beltHTML(cinturon, galones, size='sm') {
+  const b = CINTURONES[cinturon] || CINTURONES.blanco;
+  const w = size==='lg' ? 120 : 80;
+  const h = size==='lg' ? 18 : 12;
+  const tipW = size==='lg' ? 22 : 15;
+  const rW = size==='lg' ? 4 : 3;
+  const rGap = size==='lg' ? 3 : 2;
+  const rH = size==='lg' ? 10 : 7;
+  const rY = (h - rH) / 2;
+  // Rayas blancas sobre la punta negra
+  let rayas = '';
+  for (let i = 0; i < galones; i++) {
+    const rx = w - tipW + 4 + i * (rW + rGap);
+    rayas += `<rect x="${rx}" y="${rY}" width="${rW}" height="${rH}" fill="white" rx="0.5"/>`;
+  }
+  const stroke = cinturon === 'blanco' ? '#ccc' : 'none';
+  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="display:inline-block;vertical-align:middle;border-radius:2px">
+    <rect x="0" y="0" width="${w}" height="${h}" fill="${b.color}" rx="2" stroke="${stroke}" stroke-width="0.5"/>
+    <rect x="${w-tipW}" y="0" width="${tipW}" height="${h}" fill="#111" rx="0"/>
+    <rect x="${w-tipW}" y="0" width="1.5" height="${h}" fill="#333"/>
+    ${rayas}
+  </svg>`;
+}
+
+function openBeltModal() {
+  selCinturon = currentProfile?.cinturon_bjj || 'blanco';
+  selGalones = currentProfile?.galones_bjj || 0;
+  renderBeltSelector();
+  renderGalonSelector();
+  renderBeltPreview();
+  document.getElementById('modal-belt-bg').style.display = 'flex';
+}
+
+function closeBeltModal() {
+  document.getElementById('modal-belt-bg').style.display = 'none';
+}
+
+function renderBeltSelector() {
+  const el = document.getElementById('belt-selector');
+  el.innerHTML = Object.entries(CINTURONES).map(([key,b])=>
+    `<div onclick="selCinturon='${key}';renderBeltSelector();renderGalonSelector();renderBeltPreview()" 
+      style="cursor:pointer;padding:3px;border-radius:4px;border:2px solid ${key===selCinturon?'#e63946':'transparent'}">
+      ${beltHTML(key,0,'sm')}
+    </div>`
+  ).join('');
+}
+
+function renderGalonSelector() {
+  const el = document.getElementById('galon-selector');
+  el.innerHTML = [0,1,2,3,4].map(g=>
+    `<div class="galon-opt${g===selGalones?' sel':''}" onclick="selGalones=${g};renderGalonSelector();renderBeltPreview()">${g}</div>`
+  ).join('');
+}
+
+function renderBeltPreview() {
+  document.getElementById('belt-preview').innerHTML = '<div style="text-align:center;margin-top:8px">'+beltHTML(selCinturon,selGalones,'lg')+'</div>';
+}
+
+async function saveBelt() {
+  await db.from('profiles').update({cinturon_bjj:selCinturon, galones_bjj:selGalones}).eq('id',currentUser.id);
+  currentProfile.cinturon_bjj = selCinturon;
+  currentProfile.galones_bjj = selGalones;
+  closeBeltModal();
+  toast('Cinturón actualizado');
+  loadInicio();
+}
+
 db.auth.onAuthStateChange((event, session) => {
   if (event === 'PASSWORD_RECOVERY') {
     document.getElementById('auth-screen').classList.add('hidden');
@@ -798,5 +891,21 @@ db.auth.onAuthStateChange((event, session) => {
   }
 });
 </script>
+
+<!-- BELT MODAL -->
+<div id="modal-belt-bg" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:200;align-items:center;justify-content:center">
+  <div style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:16px;padding:24px;width:300px">
+    <div style="font-size:16px;font-weight:700;color:#fff;margin-bottom:16px">Mi cinturón BJJ</div>
+    <div style="font-size:12px;color:#888;margin-bottom:8px">Cinturón</div>
+    <div class="belt-selector" id="belt-selector"></div>
+    <div style="font-size:12px;color:#888;margin-bottom:8px">Galones</div>
+    <div class="galon-selector" id="galon-selector"></div>
+    <div id="belt-preview" style="margin-bottom:16px"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn-cancel" onclick="closeBeltModal()">Cancelar</button>
+      <button class="btn-save" onclick="saveBelt()">Guardar</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
