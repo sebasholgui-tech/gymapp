@@ -581,6 +581,25 @@ async function loadInicio() {
   await loadPuesto();
 }
 
+async function loadPuesto() {
+  const mes = new Date().toISOString().slice(0,7);
+  const {data} = await db.from('checkins').select('usuario_id').gte('fecha',mes+'-01');
+  if (!data) return;
+  const counts = {};
+  data.forEach(r=>counts[r.usuario_id]=(counts[r.usuario_id]||0)+1);
+  const sorted = Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+  const pos = sorted.findIndex(([id])=>id===currentUser.id);
+  document.getElementById('mi-puesto').textContent = pos>=0 ? '#'+(pos+1) : '—';
+  // Top discipline
+  const {data:tipos} = await db.from('checkins').select('tipo').eq('usuario_id',currentUser.id).not('tipo','is',null);
+  if (tipos?.length) {
+    const freq = {};
+    tipos.forEach(t=>freq[t.tipo]=(freq[t.tipo]||0)+1);
+    const top = Object.entries(freq).sort((a,b)=>b[1]-a[1])[0];
+    document.getElementById('mi-disciplina').textContent = top?.[0] || '—';
+  }
+}
+
 async function doCheckin() {
   const hoy = new Date().toISOString().split('T')[0];
   const claseAhora = getClaseActual();
