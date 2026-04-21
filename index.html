@@ -892,7 +892,7 @@ const DISC_KEYS = Object.keys(DISCIPLINAS);
 function iconSVG(icon, color, size=28) {
   const s = size;
   const fs = Math.round(s * 0.55);
-  const emojis = {mma:'🥋', boxing:'🥊', belt:'🥋', nogi:'🤼', kick:'👊'};
+  const emojis = {mma:'👊', boxing:'🥊', belt:'🥋', nogi:'🤼', kick:'👊'};
   const emoji = emojis[icon] || '🏋️';
   return `<span style="display:inline-flex;align-items:center;justify-content:center;width:${s}px;height:${s}px;border-radius:50%;background:${color}22;border:1.5px solid ${color}55;font-size:${fs}px;line-height:1;flex-shrink:0">${emoji}</span>`;
 }
