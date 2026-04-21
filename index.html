@@ -933,11 +933,11 @@ function discBadge(disc) {
 }
 
 const CINTURONES = {
-  blanco:   {color:'#f0f0f0', text:'#222', label:'Blanco'},
+  blanco:   {color:'#e8e8e8', text:'#222', label:'Blanco'},
   azul:     {color:'#1565C0', text:'#fff', label:'Azul'},
   morado:   {color:'#8E24AA', text:'#fff', label:'Morado'},
   marron:   {color:'#6D4C41', text:'#fff', label:'Marrón'},
-  negro:    {color:'#1a1a1a', text:'#fff', label:'Negro'},
+  negro:    {color:'#2d2d2d', text:'#fff', label:'Negro'},
 };
 
 
@@ -1021,17 +1021,19 @@ function beltHTML(cinturon, galones, size='sm') {
   const rGap = size==='lg' ? 3 : 2;
   const rH = size==='lg' ? 10 : 7;
   const rY = (h - rH) / 2;
-  // Rayas blancas sobre la punta negra
   let rayas = '';
   for (let i = 0; i < galones; i++) {
     const rx = w - tipW + 4 + i * (rW + rGap);
     rayas += `<rect x="${rx}" y="${rY}" width="${rW}" height="${rH}" fill="white" rx="0.5"/>`;
   }
-  const stroke = cinturon === 'blanco' ? '#ccc' : 'none';
-  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="display:inline-block;vertical-align:middle;border-radius:2px">
-    <rect x="0" y="0" width="${w}" height="${h}" fill="${b.color}" rx="2" stroke="${stroke}" stroke-width="0.5"/>
-    <rect x="${w-tipW}" y="0" width="${tipW}" height="${h}" fill="#111" rx="0"/>
-    <rect x="${w-tipW}" y="0" width="1.5" height="${h}" fill="#333"/>
+  // Always show border - white/light for dark belts, dark for white belt
+  const stroke = cinturon === 'blanco' ? '#999' : cinturon === 'negro' ? '#555' : b.color;
+  const tipColor = cinturon === 'negro' ? '#333' : '#111';
+  const tipStroke = cinturon === 'negro' ? '#666' : 'none';
+  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="display:inline-block;vertical-align:middle;border-radius:2px;border:1px solid ${stroke}">
+    <rect x="0" y="0" width="${w}" height="${h}" fill="${b.color}" rx="1"/>
+    <rect x="${w-tipW}" y="0" width="${tipW}" height="${h}" fill="${tipColor}" rx="0"/>
+    <rect x="${w-tipW}" y="0" width="1.5" height="${h}" fill="${tipStroke}"/>
     ${rayas}
   </svg>`;
 }
