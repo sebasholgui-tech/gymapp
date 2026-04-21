@@ -1320,22 +1320,7 @@ async function loadCalendario() {
     checkinDays[day].push({nombre, hora, color, tipo: c.tipo});
   });
 
-  // Also get reservas for this month to show class names
-  const diasMap = {1:'Lunes',2:'Martes',3:'Miércoles',4:'Jueves',5:'Viernes',6:'Sábado'};
-  const reservasPorDia = {};
-  reservas?.forEach(r => {
-    const cl = r.clases;
-    if (!cl) return;
-    const diaNombre = cl.dia;
-    // Find all days in this month that match
-    for (let dd = 1; dd <= ultimoDia; dd++) {
-      const dow = new Date(calYear, calMonth, dd).getDay();
-      if (diasMap[dow] === diaNombre) {
-        if (!reservasPorDia[dd]) reservasPorDia[dd] = [];
-        reservasPorDia[dd].push({nombre: cl.nombre, hora: cl.hora, color: cl.color||'#e63946'});
-      }
-    }
-  });
+  // reservasPorDia not used - only show actual checkins
 
   // Hours bar
   const horasMes = currentProfile?.horas_mes || 0;
@@ -1389,22 +1374,16 @@ async function loadCalendario() {
   for (let d = 1; d <= ultimoDia; d++) {
     const hasCheckin = checkinDays[d];
     const isToday = d === todayDay;
-    const reservaHoy = reservasPorDia[d] || [];
-    const hasReserva = reservaHoy.length > 0;
     const checkinInfo = hasCheckin && checkinDays[d] ? checkinDays[d][0] : null;
-    const mainColor2 = checkinInfo ? checkinInfo.color : (hasReserva ? (reservaHoy[0].color||'#555') : null);
-    const bgColor = hasCheckin ? mainColor2+'22' : isToday ? '#1a1a1a' : 'transparent';
-    const borderColor = hasCheckin ? mainColor2 : hasReserva ? '#3a3a3a' : isToday ? '#e63946' : '#2a2a2a';
+    const cellColor = checkinInfo ? checkinInfo.color : '#e63946';
+    const bgColor = hasCheckin ? cellColor+'22' : isToday ? '#1a1a1a' : 'transparent';
+    const borderColor = hasCheckin ? cellColor : isToday ? '#e63946' : '#2a2a2a';
     cells += `<div style="border-radius:8px;padding:5px 3px;min-height:60px;display:flex;flex-direction:column;align-items:center;
       background:${bgColor};border:1.5px solid ${borderColor}">
-      <span style="font-size:11px;font-weight:${isToday||hasCheckin?'700':'400'};color:${hasCheckin?mainColor2:isToday?'#e63946':'#666'}">${d}</span>
+      <span style="font-size:11px;font-weight:${isToday||hasCheckin?'700':'400'};color:${hasCheckin?cellColor:isToday?'#e63946':'#666'}">${d}</span>
       ${hasCheckin && checkinInfo ? `
         <div style="font-size:7.5px;color:${checkinInfo.color};font-weight:700;text-align:center;margin-top:2px;line-height:1.3;word-break:break-word;max-width:100%">${checkinInfo.nombre}</div>
-        ${checkinInfo.hora ? `<div style="font-size:7px;color:${checkinInfo.color}99;text-align:center">${checkinInfo.hora}</div>` : ''}
-      ` : ''}
-      ${!hasCheckin && hasReserva ? `
-        <div style="font-size:7px;color:#555;text-align:center;margin-top:2px;line-height:1.2">${reservaHoy[0].nombre.slice(0,10)}</div>
-        <div style="font-size:7px;color:#444;text-align:center">${reservaHoy[0].hora}</div>
+        ${checkinInfo.hora ? `<div style="font-size:7px;color:${checkinInfo.color}88;text-align:center">${checkinInfo.hora}</div>` : ''}
       ` : ''}
     </div>`;
   }
