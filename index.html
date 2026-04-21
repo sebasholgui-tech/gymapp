@@ -643,6 +643,7 @@ async function loadClases() {
           <button class="btn-reservar ${reservado?'reservado':(lleno&&!reservado?'lleno':'')}" onclick="${onclk}">
             ${reservado?'Apuntado ✓':(lleno&&!reservado?'Lleno':'Apuntarme')}
           </button>
+          ${clId?`<button onclick="verApuntados('${clId}','${cl.nombre}','${color}')" style="background:none;border:none;cursor:pointer;color:#555;font-size:11px;margin-top:4px;font-family:inherit;padding:0">${ocupadas} apuntados 👥</button>`:''}
         </div>
       </div>
     </div>`;
@@ -1158,6 +1159,37 @@ function openEditPlazas(claseId, plazasActuales) {
   });
 }
 
+
+async function verApuntados(claseId, claseNombre, color) {
+  document.getElementById('modal-apuntados-bg').style.display = 'flex';
+  document.getElementById('modal-apuntados-title').textContent = claseNombre;
+  document.getElementById('modal-apuntados-list').innerHTML = '<div style="text-align:center;color:#555;padding:1rem">Cargando...</div>';
+
+  const {data:reservas} = await db.from('reservas').select('usuario_id').eq('clase_id', claseId);
+  if (!reservas?.length) {
+    document.getElementById('modal-apuntados-list').innerHTML = '<div style="text-align:center;color:#555;padding:2rem;font-size:14px">Nadie se ha apuntado aún</div>';
+    return;
+  }
+  const ids = reservas.map(r=>r.usuario_id);
+  const {data:profiles} = await db.from('profiles').select('id,nombre,disciplina,avatar_url').in('id', ids);
+
+  document.getElementById('modal-apuntados-list').innerHTML = profiles?.map((p,i)=>{
+    const ini = p.nombre.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+    const d = DISCIPLINAS[p.disciplina]||DISCIPLINAS.MMA;
+    return `<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid #2a2a2a">
+      <div style="font-size:14px;font-weight:700;color:#555;width:24px;text-align:center">${i+1}</div>
+      <div style="width:36px;height:36px;border-radius:50%;background:${d.color}22;border:1.5px solid ${d.color}44;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:${d.color};overflow:hidden;flex-shrink:0">
+        ${p.avatar_url?`<img src="${p.avatar_url}" style="width:100%;height:100%;object-fit:cover">`:ini}
+      </div>
+      <div style="flex:1">
+        <div style="font-size:14px;font-weight:600;color:#fff">${p.nombre}</div>
+        <div style="font-size:11px;color:#555">${p.disciplina||'MMA'}</div>
+      </div>
+      ${p.id===currentUser.id?'<span style="font-size:11px;background:#0a2a0a;color:#5dba5d;padding:2px 8px;border-radius:20px;font-weight:700">Tú</span>':''}
+    </div>`;
+  }).join('') || '<div style="text-align:center;color:#555;padding:1rem">Sin datos</div>';
+}
+
 db.auth.onAuthStateChange((event, session) => {
   if (event === 'PASSWORD_RECOVERY') {
     document.getElementById('auth-screen').classList.add('hidden');
@@ -1203,5 +1235,16 @@ db.auth.onAuthStateChange((event, session) => {
 </div>
 
 <!-- belt modal removed - now inside disc modal -->
+
+<!-- MODAL APUNTADOS -->
+<div id="modal-apuntados-bg" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:200;align-items:flex-end;justify-content:center">
+  <div style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:16px 16px 0 0;padding:20px;width:100%;max-width:600px;max-height:70vh;overflow-y:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div id="modal-apuntados-title" style="font-size:16px;font-weight:700;color:#fff"></div>
+      <button onclick="document.getElementById('modal-apuntados-bg').style.display='none'" style="background:none;border:none;color:#888;font-size:20px;cursor:pointer">✕</button>
+    </div>
+    <div id="modal-apuntados-list"></div>
+  </div>
+</div>
 </body>
 </html>
