@@ -158,6 +158,7 @@
       <button class="nav-btn active" onclick="showScreen('inicio')">Inicio</button>
       <button class="nav-btn" onclick="showScreen('clases')">Clases</button>
       <button class="nav-btn" onclick="showScreen('ranking')">Ranking</button>
+      <button class="nav-btn" onclick="showScreen('perfil')">Perfil</button>
       <button class="nav-btn hidden" id="nav-admin" onclick="showScreen('admin')">Admin</button>
     </div>
 
@@ -219,6 +220,26 @@
       <div id="lista-ranking"></div>
     </div>
 
+    <!-- PERFIL -->
+    <div id="screen-perfil" class="screen">
+      <div style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:14px;padding:20px;margin-bottom:14px">
+        <div style="font-size:14px;font-weight:700;color:#fff;margin-bottom:16px">Editar perfil</div>
+        <div class="form-group"><label class="form-label">Nombre completo</label><input class="form-input" id="p-nombre" placeholder="Tu nombre"></div>
+        <button class="btn-main" onclick="saveNombre()" style="margin-bottom:0">Guardar nombre</button>
+      </div>
+      <div style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:14px;padding:20px;margin-bottom:14px">
+        <div style="font-size:14px;font-weight:700;color:#fff;margin-bottom:16px">Cambiar email</div>
+        <div class="form-group"><label class="form-label">Nuevo email</label><input class="form-input" id="p-email" type="email" placeholder="nuevo@email.com"></div>
+        <button class="btn-main" onclick="saveEmail()" style="margin-bottom:0">Guardar email</button>
+      </div>
+      <div style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:14px;padding:20px">
+        <div style="font-size:14px;font-weight:700;color:#fff;margin-bottom:16px">Cambiar contraseña</div>
+        <div class="form-group"><label class="form-label">Nueva contraseña</label><input class="form-input" id="p-pass1" type="password" placeholder="mínimo 6 caracteres"></div>
+        <div class="form-group"><label class="form-label">Repetir contraseña</label><input class="form-input" id="p-pass2" type="password" placeholder="repite la contraseña"></div>
+        <button class="btn-main" onclick="savePassword()" style="margin-bottom:0">Cambiar contraseña</button>
+      </div>
+    </div>
+
     <!-- ADMIN -->
     <div id="screen-admin" class="screen">
       <div class="section-title">Visitas de hoy</div>
@@ -229,7 +250,8 @@
       <div class="section-title">Gestión de clases</div>
       <div id="admin-clases"></div>
       <button class="btn-add" onclick="openModalClase()">+ Añadir clase</button>
-      <div class="section-title">Todos los socios</div>
+      <div class="section-title">Buscar socios</div>
+      <input class="form-input" id="admin-search" placeholder="Buscar por nombre..." oninput="filterSocios()" style="margin-bottom:12px">
       <div id="admin-socios-list"></div>
     </div>
   </div>
@@ -422,6 +444,7 @@ function showScreen(name) {
   if (name==='clases') loadClases();
   if (name==='ranking') loadRanking();
   if (name==='admin') loadAdmin();
+  if (name==='perfil') loadPerfil();
 }
 
 async function uploadFoto(event) {
@@ -766,35 +789,45 @@ async function loadRanking() {
 
 async function loadAdmin() {
   const hoy = new Date().toISOString().split('T')[0];
+  const mes = new Date().toISOString().slice(0,7);
   const {data:hoyData} = await db.from('checkins').select('id').eq('fecha',hoy);
   const {data:socios} = await db.from('profiles').select('*');
   const {data:clases} = await db.from('clases').select('*').order('hora');
+  const {data:checkinsMes} = await db.from('checkins').select('usuario_id').gte('fecha',mes+'-01');
+  const {data:checkinsTotal} = await db.from('checkins').select('usuario_id');
 
   document.getElementById('admin-hoy').textContent = hoyData?.length||0;
   document.getElementById('admin-socios').textContent = socios?.length||0;
+
+  // Count visits per user
+  const countsMes = {}, countsTotal = {};
+  checkinsMes?.forEach(r=>countsMes[r.usuario_id]=(countsMes[r.usuario_id]||0)+1);
+  checkinsTotal?.forEach(r=>countsTotal[r.usuario_id]=(countsTotal[r.usuario_id]||0)+1);
 
   const acEl = document.getElementById('admin-clases');
   acEl.innerHTML = clases?.map(cl=>`
     <div class="card">
       <div class="clase-header">
-        <div class="clase-stripe" style="background:${cl.color||'#7F77DD'}"></div>
+        <div class="clase-stripe" style="background:${cl.color||'#e63946'}"></div>
         <div style="flex:1">
           <div class="clase-name">${cl.nombre}</div>
-          <div class="clase-meta">${cl.dia||''} ${cl.hora||''} · ${cl.duracion||''} · ${cl.instructor||''} · ${cl.plazas} plazas</div>
+          <div class="clase-meta">${cl.dia||''} ${cl.hora||''} · ${cl.duracion||''}</div>
         </div>
-        <button onclick="eliminarClase('${cl.id}')" style="background:none;border:none;cursor:pointer;color:#bbb;font-size:16px;padding:4px">✕</button>
+        <div style="display:flex;align-items:center;gap:8px">
+          <button onclick="openEditPlazas('${cl.id}',${cl.plazas})" style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer;color:#888;font-family:inherit">${cl.plazas} plz ✏️</button>
+          <button onclick="eliminarClase('${cl.id}')" style="background:none;border:none;cursor:pointer;color:#555;font-size:16px;padding:4px">✕</button>
+        </div>
       </div>
-    </div>`).join('')||'<div style="color:#aaa;font-size:14px;padding:1rem 0">No hay clases</div>';
+    </div>`).join('')||'<div style="color:#555;font-size:14px;padding:1rem 0">No hay clases</div>';
 
-  const asEl = document.getElementById('admin-socios-list');
-  asEl.innerHTML = socios?.map(s=>{
-    const ini = s.nombre.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
-    return `<div class="card"><div class="card-row">
-      <div class="avatar">${ini}</div>
-      <div style="flex:1"><div class="person-name">${s.nombre}</div><div class="person-sub">${s.rol}</div></div>
-      ${s.rol!=='admin'?`<button onclick="hacerAdmin('${s.id}')" style="border:1px solid #eee;border-radius:8px;padding:5px 10px;font-size:11px;cursor:pointer;background:none;color:#888;font-family:inherit">Hacer admin</button>`:'<span style="font-size:11px;background:#EEEDFE;color:#3C3489;padding:3px 8px;border-radius:20px">Admin</span>'}
-    </div></div>`;
-  }).join('')||'';
+  // Build socios with visit counts
+  allSocios = socios?.map(s=>({
+    ...s,
+    visitas_mes: countsMes[s.id]||0,
+    visitas_total: countsTotal[s.id]||0
+  })).sort((a,b)=>b.visitas_mes-a.visitas_mes)||[];
+
+  renderSociosList(allSocios);
 }
 
 async function eliminarClase(id) {
@@ -1049,6 +1082,80 @@ async function saveBelt() {
   closeBeltModal();
   toast('Cinturón actualizado');
   loadInicio();
+}
+
+
+async function loadPerfil() {
+  document.getElementById('p-nombre').value = currentProfile?.nombre || '';
+  document.getElementById('p-email').value = currentUser?.email || '';
+  document.getElementById('p-pass1').value = '';
+  document.getElementById('p-pass2').value = '';
+}
+
+async function saveNombre() {
+  const nombre = document.getElementById('p-nombre').value.trim();
+  if (!nombre) return toast('Escribe tu nombre');
+  await db.from('profiles').update({nombre}).eq('id', currentUser.id);
+  currentProfile.nombre = nombre;
+  document.getElementById('user-name-label').textContent = nombre;
+  toast('Nombre actualizado');
+  loadInicio();
+}
+
+async function saveEmail() {
+  const email = document.getElementById('p-email').value.trim();
+  if (!email) return toast('Escribe el nuevo email');
+  const {error} = await db.auth.updateUser({email});
+  if (error) return toast('Error: ' + error.message);
+  toast('Email actualizado. Revisa tu bandeja.');
+}
+
+async function savePassword() {
+  const p1 = document.getElementById('p-pass1').value;
+  const p2 = document.getElementById('p-pass2').value;
+  if (!p1 || p1.length < 6) return toast('Mínimo 6 caracteres');
+  if (p1 !== p2) return toast('Las contraseñas no coinciden');
+  const {error} = await db.auth.updateUser({password: p1});
+  if (error) return toast('Error al cambiar contraseña');
+  toast('Contraseña cambiada');
+  document.getElementById('p-pass1').value = '';
+  document.getElementById('p-pass2').value = '';
+}
+
+let allSocios = [];
+
+function filterSocios() {
+  const q = document.getElementById('admin-search').value.toLowerCase();
+  const filtered = q ? allSocios.filter(s=>s.nombre.toLowerCase().includes(q)) : allSocios;
+  renderSociosList(filtered);
+}
+
+function renderSociosList(socios) {
+  const el = document.getElementById('admin-socios-list');
+  el.innerHTML = socios.map(s=>{
+    const ini = s.nombre.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+    const disc = s.disciplina ? `<span style="font-size:10px;background:${(DISCIPLINAS[s.disciplina]||DISCIPLINAS.MMA).color}22;color:${(DISCIPLINAS[s.disciplina]||DISCIPLINAS.MMA).color};padding:1px 6px;border-radius:10px;margin-left:4px">${s.disciplina}</span>` : '';
+    const disc2 = s.disciplina2 ? `<span style="font-size:10px;background:${(DISCIPLINAS[s.disciplina2]||DISCIPLINAS.MMA).color}22;color:${(DISCIPLINAS[s.disciplina2]||DISCIPLINAS.MMA).color};padding:1px 6px;border-radius:10px;margin-left:2px">${s.disciplina2}</span>` : '';
+    return `<div class="card"><div class="card-row">
+      <div class="avatar" style="overflow:hidden">${s.avatar_url?`<img src="${s.avatar_url}" style="width:100%;height:100%;object-fit:cover">`:ini}</div>
+      <div style="flex:1;min-width:0">
+        <div class="person-name" style="display:flex;align-items:center;flex-wrap:wrap;gap:2px">${s.nombre}${disc}${disc2}</div>
+        <div class="person-sub">${s.visitas_mes} visitas este mes · ${s.visitas_total} total</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end">
+        ${s.rol!=='admin'?`<button onclick="hacerAdmin('${s.id}')" style="border:1px solid #2a2a2a;border-radius:6px;padding:3px 8px;font-size:10px;cursor:pointer;background:none;color:#888;font-family:inherit">Admin</button>`:'<span style="font-size:10px;color:#e63946;font-weight:700">Admin</span>'}
+      </div>
+    </div></div>`;
+  }).join('') || '<div style="text-align:center;padding:1rem;color:#555;font-size:13px">No se encontraron socios</div>';
+}
+
+function openEditPlazas(claseId, plazasActuales) {
+  const nuevas = prompt('Número de plazas para esta clase:', plazasActuales);
+  if (!nuevas || isNaN(nuevas)) return;
+  db.from('clases').update({plazas: parseInt(nuevas)}).eq('id', claseId).then(()=>{
+    toast('Plazas actualizadas');
+    loadAdmin();
+  });
 }
 
 db.auth.onAuthStateChange((event, session) => {
