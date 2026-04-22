@@ -926,9 +926,9 @@ async function loadRanking() {
   const top3 = sorted.slice(0, Math.min(3, sorted.length));
   if (top3.length > 0) {
     const podOrder = top3.length===1?[0]:top3.length===2?[1,0]:[1,0,2];
-    const podH = ['65px','90px','50px'];
-    const podMedal = ['🥈🔥🔥','🏆🔥🔥🔥','🥉🔥'];
-    const podBorder = ['#C0C0C0','#FFD700','#CD7F32'];
+    const podH = ['90px','65px','50px'];
+    const podMedal = ['🏆🔥🔥🔥','🥈🔥🔥','🥉🔥'];
+    const podBorder = ['#FFD700','#C0C0C0','#CD7F32'];
     podHTML = `<div style="display:flex;align-items:flex-end;justify-content:center;gap:6px;margin-bottom:1.5rem;padding:0 4px">
       ${podOrder.map(i=>{
         if(!top3[i]) return '';
