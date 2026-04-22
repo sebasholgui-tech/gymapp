@@ -890,7 +890,12 @@ async function loadRanking() {
     });
   }
 
-  const sorted = Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,20);
+  // Add all profiles with 0 if not in counts
+  profiles?.forEach(p => {
+    if (!(p.id in counts)) counts[p.id] = 0;
+  });
+
+  const sorted = Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,30);
   const max = sorted[0]?.[1]||1;
   const medals = ['g','s','b'];
   const color = TIPO_COLORS[currentRankTab]||'#e63946';
