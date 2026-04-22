@@ -335,7 +335,7 @@ body.light .auth-tab.active{background:#f0f0f0!important;color:#1a1a1a!important
 
         <div onclick="togglePerfilSection('factura')" style="display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer;border-bottom:1px solid #2a2a2a">
           <span style="font-size:20px">💳</span>
-          <div style="flex:1"><div style="font-size:14px;font-weight:600;color:#fff">Plan y facturación</div><div style="font-size:12px;color:#555" id="plan-desc-perfil">Cargando...</div></div>
+          <div style="flex:1"><div style="font-size:14px;font-weight:600;color:#fff">Pagos y facturación</div><div style="font-size:12px;color:#555" id="plan-desc-perfil">Cargando...</div></div>
           <span style="color:#555;font-size:16px" id="arr-factura">›</span>
         </div>
         <div id="sec-factura" style="display:none;padding:14px 16px;border-bottom:1px solid #2a2a2a;background:#111">
@@ -1384,7 +1384,9 @@ function renderSociosList(socios) {
       <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end">
         <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end">
         <button onclick="editarHoras('${s.id}','${s.nombre}',${s.horas_mes||0})" style="border:1px solid #2a2a2a;border-radius:6px;padding:3px 8px;font-size:10px;cursor:pointer;background:none;color:#e63946;font-family:inherit">⏱ ${s.horas_mes||0}h/mes</button>
+        <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end">
         ${s.rol!=='admin'?`<button onclick="hacerAdmin('${s.id}')" style="border:1px solid #2a2a2a;border-radius:6px;padding:3px 8px;font-size:10px;cursor:pointer;background:none;color:#888;font-family:inherit">Admin</button>`:'<span style="font-size:10px;color:#e63946;font-weight:700">Admin</span>'}
+        ${s.rol!=='admin'?`<button onclick="borrarSocio('${s.id}','${s.nombre}')" style="border:1px solid #e6394644;border-radius:6px;padding:3px 8px;font-size:10px;cursor:pointer;background:none;color:#e63946;font-family:inherit">🗑 Borrar</button>`:''}
       </div>
       </div>
     </div></div>`;
@@ -1697,21 +1699,45 @@ async function loadPerfilScreen() {
   const mes = new Date().toISOString().slice(0,7);
   const {data:mesData} = await db.from('checkins').select('id').eq('usuario_id',currentUser.id).gte('fecha',mes+'-01');
   const usadas = mesData?.length||0;
-  if (facEl) facEl.innerHTML = horas===0
-    ? `<div style="text-align:center;padding:1rem">
-        <div style="font-size:32px;margin-bottom:8px">♾️</div>
-        <div style="font-size:15px;font-weight:700;color:#fff">Plan ilimitado</div>
-        <div style="font-size:12px;color:#555;margin-top:4px">${usadas} clases este mes</div>
-      </div>`
-    : `<div style="text-align:center;padding:1rem">
-        <div style="font-size:32px;margin-bottom:8px">⏱️</div>
-        <div style="font-size:15px;font-weight:700;color:#fff">Plan ${horas} horas/mes</div>
-        <div style="font-size:12px;color:#555;margin-top:4px">${usadas} usadas · ${Math.max(0,horas-usadas)} restantes</div>
-        <div style="background:#2a2a2a;border-radius:6px;height:8px;overflow:hidden;margin-top:10px">
-          <div style="width:${Math.min(100,Math.round(usadas/horas*100))}%;height:8px;background:#e63946;border-radius:6px"></div>
+  const planActual = horas===0 ? 'ilimitado' : 'limitado';
+  if (facEl) facEl.innerHTML = `
+    <div style="margin-bottom:14px">
+      <div style="font-size:12px;color:#555;margin-bottom:10px">Tu plan actual</div>
+      <div style="background:${planActual==='ilimitado'?'#1D9E7522':'#e6394622'};border:1.5px solid ${planActual==='ilimitado'?'#1D9E75':'#e63946'};border-radius:10px;padding:12px;margin-bottom:4px;display:flex;align-items:center;gap:10px">
+        <span style="font-size:24px">${planActual==='ilimitado'?'♾️':'⏱️'}</span>
+        <div>
+          <div style="font-size:14px;font-weight:700;color:#fff">${planActual==='ilimitado'?'Plan ilimitado':'Plan '+horas+'h/mes'}</div>
+          <div style="font-size:12px;color:#555">${usadas} clases este mes · ${planActual==='ilimitado'?'Sin límite':Math.max(0,horas-usadas)+' restantes'}</div>
         </div>
-        <div style="font-size:11px;color:#555;margin-top:6px">Para cambiar tu plan habla con el gimnasio</div>
-      </div>`;
+        <span style="margin-left:auto;font-size:11px;background:#1D9E7533;color:#1D9E75;padding:3px 8px;border-radius:20px;font-weight:700">Activo</span>
+      </div>
+    </div>
+    <div style="font-size:12px;color:#555;margin-bottom:10px">Planes disponibles</div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <div style="background:#1a1a1a;border:1px solid ${planActual==='limitado'?'#e63946':'#2a2a2a'};border-radius:10px;padding:14px;display:flex;align-items:center;gap:12px">
+        <span style="font-size:22px">⏱️</span>
+        <div style="flex:1">
+          <div style="font-size:14px;font-weight:700;color:#fff">Plan 8h/mes</div>
+          <div style="font-size:12px;color:#555">2 clases por semana</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:18px;font-weight:800;color:#fff">55€</div>
+          <div style="font-size:10px;color:#555">/mes</div>
+        </div>
+      </div>
+      <div style="background:#1a1a1a;border:1px solid ${planActual==='ilimitado'?'#e63946':'#2a2a2a'};border-radius:10px;padding:14px;display:flex;align-items:center;gap:12px">
+        <span style="font-size:22px">♾️</span>
+        <div style="flex:1">
+          <div style="font-size:14px;font-weight:700;color:#fff">Plan ilimitado</div>
+          <div style="font-size:12px;color:#555">Clases sin límite</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:18px;font-weight:800;color:#fff">87€</div>
+          <div style="font-size:10px;color:#555">/mes</div>
+        </div>
+      </div>
+    </div>
+    <div style="font-size:11px;color:#444;text-align:center;margin-top:12px">Para cambiar de plan habla con el gimnasio</div>`;
 
   // Fill form fields
   if (document.getElementById('p-nombre')) document.getElementById('p-nombre').value = nombre;
@@ -1744,6 +1770,16 @@ function checkInvToken() {
   if (inv && inv === saved) {
     localStorage.setItem('tmc_inv_valid', '1');
   }
+}
+
+
+async function borrarSocio(userId, nombre) {
+  if (!confirm('¿Eliminar a ' + nombre + ' de la app? Se borrarán todos sus datos.')) return;
+  await db.from('checkins').delete().eq('usuario_id', userId);
+  await db.from('reservas').delete().eq('usuario_id', userId);
+  await db.from('profiles').delete().eq('id', userId);
+  toast(nombre + ' eliminado');
+  loadAdmin();
 }
 
 db.auth.onAuthStateChange((event, session) => {
