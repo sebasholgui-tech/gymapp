@@ -379,7 +379,7 @@ body.light .auth-tab.active{background:#f0f0f0!important;color:#1a1a1a!important
           <button onclick="copiarInvitacion()" style="width:100%;margin-top:8px;background:#1D9E75;border:none;border-radius:8px;padding:8px;font-size:13px;font-weight:700;color:#fff;cursor:pointer;font-family:inherit">Copiar link</button>
         </div>
       </div>
-      <div class="section-title">Gestión de horas</div>
+      <div class="section-title">Plan de los socios</div>
       <div id="admin-horas-list" style="margin-bottom:14px"></div>
       <div class="section-title">Buscar socios</div>
       <input class="form-input" id="admin-search" placeholder="Buscar por nombre..." oninput="filterSocios()" style="margin-bottom:12px">
@@ -1037,30 +1037,26 @@ async function loadAdmin() {
 
   renderSociosList(allSocios);
 
-  // Render horas management
+  // Render plan management
   const horasEl = document.getElementById('admin-horas-list');
   horasEl.innerHTML = allSocios.map(s=>{
     const hm = s.horas_mes||0;
     const usadas = s.visitas_mes||0;
-    const pct = hm>0 ? Math.min(100,Math.round(usadas/hm*100)) : 0;
-    const col = pct>=100?'#e63946':pct>=75?'#FF9800':'#1D9E75';
+    const planLabel = hm===0 ? '♾️ Ilimitado' : `⏱️ ${hm}h/mes`;
+    const planColor = hm===0 ? '#1D9E75' : '#e63946';
     const ini = s.nombre.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
     return `<div class="card" style="margin-bottom:8px">
-      <div style="padding:12px 14px">
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
-          <div style="width:32px;height:32px;border-radius:50%;background:#2a0a0a;border:1px solid #e6394644;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#e63946;overflow:hidden;flex-shrink:0">
-            ${s.avatar_url?`<img src="${s.avatar_url}" style="width:100%;height:100%;object-fit:cover">`:ini}
-          </div>
-          <div style="flex:1">
-            <div style="font-size:13px;font-weight:700;color:#fff">${s.nombre}</div>
-          </div>
-          <div style="display:flex;align-items:center;gap:6px">
-            <span style="font-size:13px;font-weight:700;color:${col}">${usadas}/${hm}h</span>
-            <button onclick="editarHoras('${s.id}','${s.nombre}',${hm})" style="background:#e63946;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;color:#fff;font-family:inherit">Editar</button>
-          </div>
+      <div class="card-row" style="padding:10px 14px">
+        <div style="width:34px;height:34px;border-radius:50%;background:#2a0a0a;border:1px solid #e6394644;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#e63946;overflow:hidden;flex-shrink:0">
+          ${s.avatar_url?`<img src="${s.avatar_url}" style="width:100%;height:100%;object-fit:cover">`:ini}
         </div>
-        <div style="background:#2a2a2a;border-radius:4px;height:6px;overflow:hidden">
-          <div style="width:${pct}%;height:6px;background:${col};border-radius:4px"></div>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:700;color:#fff">${s.nombre}</div>
+          <div style="font-size:11px;color:${planColor};margin-top:2px">${planLabel} · ${usadas} clases este mes</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end">
+          <button onclick="setPlan('${s.id}','${s.nombre}',9)" style="background:${hm===9?'#e63946':'transparent'};border:1px solid ${hm===9?'#e63946':'#2a2a2a'};border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;color:${hm===9?'#fff':'#888'};font-family:inherit;white-space:nowrap">⏱️ 9h/mes</button>
+          <button onclick="setPlan('${s.id}','${s.nombre}',0)" style="background:${hm===0?'#1D9E75':'transparent'};border:1px solid ${hm===0?'#1D9E75':'#2a2a2a'};border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;color:${hm===0?'#fff':'#888'};font-family:inherit;white-space:nowrap">♾️ Ilimitado</button>
         </div>
       </div>
     </div>`;
@@ -1586,18 +1582,7 @@ async function loadCalendario() {
 }
 
 
-async function editarHoras(userId, nombre, horasActuales) {
-  const nuevas = prompt('Horas mensuales para ' + nombre + ' (actual: ' + horasActuales + 'h):', horasActuales);
-  if (nuevas === null || nuevas === '' || isNaN(nuevas)) return;
-  const {error} = await db.from('profiles').update({horas_mes: parseInt(nuevas)}).eq('id', userId);
-  if (error) {
-    toast('Error: ' + error.message);
-    console.error(error);
-    return;
-  }
-  toast('✓ ' + nombre + ' → ' + nuevas + 'h/mes');
-  loadAdmin();
-}
+// editarHoras replaced by setPlan
 
 
 function puedeCancel(horaStr, diaNombre) {
@@ -1717,7 +1702,7 @@ async function loadPerfilScreen() {
       <div style="background:#1a1a1a;border:1px solid ${planActual==='limitado'?'#e63946':'#2a2a2a'};border-radius:10px;padding:14px;display:flex;align-items:center;gap:12px">
         <span style="font-size:22px">⏱️</span>
         <div style="flex:1">
-          <div style="font-size:14px;font-weight:700;color:#fff">Plan 8h/mes</div>
+          <div style="font-size:14px;font-weight:700;color:#fff">Plan 9h/mes</div>
           <div style="font-size:12px;color:#555">2 clases por semana</div>
         </div>
         <div style="text-align:right">
@@ -1779,6 +1764,15 @@ async function borrarSocio(userId, nombre) {
   await db.from('reservas').delete().eq('usuario_id', userId);
   await db.from('profiles').delete().eq('id', userId);
   toast(nombre + ' eliminado');
+  loadAdmin();
+}
+
+
+async function setPlan(userId, nombre, horas) {
+  const planLabel = horas===0 ? 'ilimitado' : horas+'h/mes';
+  const {error} = await db.from('profiles').update({horas_mes: horas}).eq('id', userId);
+  if (error) { toast('Error al actualizar'); return; }
+  toast(nombre + ' → Plan ' + planLabel);
   loadAdmin();
 }
 
