@@ -251,9 +251,7 @@ body.light .auth-tab.active{background:#f0f0f0!important;color:#1a1a1a!important
         <div class="stat-card"><div class="stat-label">Mi puesto</div><div class="stat-value" id="mi-puesto">—</div></div>
       </div>
 
-      <!-- Próximas clases -->
-      <div class="section-title">Próximas clases</div>
-      <div id="proximas-clases"></div>
+
 
 
     </div>
@@ -732,37 +730,7 @@ async function loadInicio() {
     ${restantes===0?'<div style="font-size:11px;color:#e63946;font-weight:700;margin-top:6px;text-align:center">⚠️ Has agotado tus horas este mes</div>':''}`;
   }
 
-  // Proximas clases reservadas
-  const diasMap = {1:'Lunes',2:'Martes',3:'Miércoles',4:'Jueves',5:'Viernes',6:'Sábado'};
-  const hoyDow = new Date().getDay();
-  const {data:reservas} = await db.from('reservas')
-    .select('clase_id, clases(nombre,dia,hora,color,duracion)')
-    .eq('usuario_id', currentUser.id);
 
-  const proximasEl = document.getElementById('proximas-clases');
-  if (!reservas?.length) {
-    proximasEl.innerHTML = '<div style="text-align:center;padding:1.5rem;color:#444;font-size:13px">No tienes clases reservadas.<br>Ve a <b style="color:#e63946">Clases</b> para apuntarte.</div>';
-  } else {
-    const sorted = reservas.filter(r=>r.clases).sort((a,b)=>{
-      const da = Object.keys(diasMap).find(k=>diasMap[k]===a.clases.dia)||7;
-      const db2 = Object.keys(diasMap).find(k=>diasMap[k]===b.clases.dia)||7;
-      if(da!==db2) return da-db2;
-      return (a.clases.hora||'').localeCompare(b.clases.hora||'');
-    });
-    proximasEl.innerHTML = sorted.slice(0,5).map(r=>{
-      const cl = r.clases;
-      const color = cl.color||'#e63946';
-      return `<div class="card" style="border-left:3px solid ${color};margin-bottom:8px">
-        <div class="card-row" style="padding:10px 14px">
-          <div style="flex:1">
-            <div style="font-size:14px;font-weight:700;color:#fff">${cl.nombre}</div>
-            <div style="font-size:12px;color:#555;margin-top:2px">${cl.dia} · ${cl.hora} · ${cl.duracion}</div>
-          </div>
-          <span style="font-size:11px;background:${color}22;color:${color};padding:3px 8px;border-radius:20px;font-weight:700">${cl.dia?.slice(0,3)}</span>
-        </div>
-      </div>`;
-    }).join('');
-  }
 
   await loadPuesto();
 }
@@ -810,7 +778,15 @@ async function loadClases() {
     const pct=Math.min(100,Math.round(ocupadas/cl.plazas*100));
     const color=TIPO_COLORS[cl.tipo]||'#888';
     const onclk=!clId?`toast('Clase sin reserva online')`:(lleno&&!reservado?'':`toggleReservaClase('${clId}')`);
-    return `<div class="card" style="border-left:3px solid ${color}">
+    // Check if class has already passed today
+    const now = new Date();
+    const todayDow = (now.getDay()+6)%7;
+    const selDow = DIAS.indexOf(selectedDay);
+    const isPast = selDow === todayDow && cl.fin && (() => {
+      const [h,m] = cl.fin.split(':').map(Number);
+      return now.getHours()*60+now.getMinutes() > h*60+m;
+    })();
+    return `<div class="card" style="border-left:3px solid ${color};${isPast?'opacity:0.5':''}">
       <div class="clase-header">
         <div style="flex:1">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
@@ -828,10 +804,13 @@ async function loadClases() {
         <div style="text-align:right;flex-shrink:0">
           <div class="clase-plazas"><span style="color:${color}">${Math.max(0,libres)}</span>libres</div>
           <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
-          <button class="btn-reservar ${reservado?'reservado':(lleno&&!reservado?'lleno':'')}" onclick="${onclk}">
-            ${reservado?'Apuntado ✓':(lleno&&!reservado?'Lleno':'Apuntarme')}
-          </button>
-          ${reservado && clId ? `<button onclick="cancelarReserva('${clId}','${cl.hora}','${selectedDay}')" style="background:none;border:none;cursor:pointer;color:#e63946;font-size:11px;font-family:inherit;padding:0;text-decoration:underline">Cancelar reserva</button>` : ''}
+          ${isPast ? 
+            `<span style="font-size:11px;color:#555;font-style:italic">Clase finalizada</span>` :
+            `<button class="btn-reservar ${reservado?'reservado':(lleno&&!reservado?'lleno':'')}" onclick="${onclk}">
+              ${reservado?'Apuntado ✓':(lleno&&!reservado?'Lleno':'Apuntarme')}
+            </button>`
+          }
+          ${reservado && clId && !isPast ? `<button onclick="cancelarReserva('${clId}','${cl.hora}','${selectedDay}')" style="background:none;border:none;cursor:pointer;color:#e63946;font-size:11px;font-family:inherit;padding:0;text-decoration:underline">Cancelar reserva</button>` : ''}
           ${!reservado && clId ? `<button onclick="verApuntados('${clId}','${cl.nombre}','${color}')" style="background:none;border:none;cursor:pointer;color:#555;font-size:11px;margin-top:0;font-family:inherit;padding:0">${ocupadas} apuntados 👥</button>` : ''}
           ${reservado && clId ? `<button onclick="verApuntados('${clId}','${cl.nombre}','${color}')" style="background:none;border:none;cursor:pointer;color:#555;font-size:11px;font-family:inherit;padding:0">${ocupadas} apuntados 👥</button>` : ''}
         </div>
@@ -887,31 +866,23 @@ async function loadRanking() {
   const {data:checkins} = await db.from('checkins').select('usuario_id,tipo').gte('fecha',dateFrom);
   let counts = {};
 
+  // Always start with ALL profiles at 0
+  profiles?.forEach(p => { counts[p.id] = 0; });
+
+  // Add checkins on top
   checkins?.forEach(r=>{
-    // For General: count all. For specific discipline: count by tipo or by user discipline
     if (currentRankTab === 'General') {
       counts[r.usuario_id] = (counts[r.usuario_id]||0) + 1;
     } else if (r.tipo === currentRankTab) {
       counts[r.usuario_id] = (counts[r.usuario_id]||0) + 1;
+    } else if (!r.tipo) {
+      // checkin without tipo counts for all tabs
+      counts[r.usuario_id] = (counts[r.usuario_id]||0) + 1;
     }
   });
 
-  // Fallback: if no tipo-filtered results, show all users of that discipline with their total checkins
-  if (!Object.keys(counts).length && currentRankTab !== 'General') {
-    checkins?.forEach(r=>{
-      const prof = profileMap[r.usuario_id];
-      if (prof?.disciplina === currentRankTab || prof?.disciplina2 === currentRankTab) {
-        counts[r.usuario_id] = (counts[r.usuario_id]||0) + 1;
-      }
-    });
-  }
-
-  // Add all profiles with 0 if not in counts
-  profiles?.forEach(p => {
-    if (!(p.id in counts)) counts[p.id] = 0;
-  });
-
-  const sorted = Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,30);
+  // Only show users with at least 1 checkin in ranking
+  const sorted = Object.entries(counts).filter(([id,c])=>c>0).sort((a,b)=>b[1]-a[1]).slice(0,30);
   const max = sorted[0]?.[1]||1;
   const medals = ['g','s','b'];
   const color = TIPO_COLORS[currentRankTab]||'#e63946';
@@ -1421,6 +1392,7 @@ async function verApuntados(claseId, claseNombre, color) {
   document.getElementById('modal-apuntados-list').innerHTML = '<div style="text-align:center;color:#555;padding:1rem">Cargando...</div>';
 
   const {data:reservas} = await db.from('reservas').select('usuario_id').eq('clase_id', claseId);
+  console.log('Apuntados:', reservas);
   if (!reservas?.length) {
     document.getElementById('modal-apuntados-list').innerHTML = '<div style="text-align:center;color:#555;padding:2rem;font-size:14px">Nadie se ha apuntado aún</div>';
     return;
