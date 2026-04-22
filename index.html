@@ -540,10 +540,18 @@ async function doRegister() {
   const pass = document.getElementById('reg-pass').value;
   if (!nombre||!email||!pass) return showError('Rellena todos los campos');
   if (pass.length < 6) return showError('La contraseña debe tener al menos 6 caracteres');
+  // Check invitation token
+  const invValid = localStorage.getItem('tmc_inv_valid');
+  const urlInv = new URLSearchParams(window.location.search).get('inv');
+  const savedInv = localStorage.getItem('tmc_inv_token');
+  if (!invValid && !(urlInv && urlInv === savedInv)) {
+    return showError('Necesitas un link de invitación del gimnasio para registrarte.');
+  }
   const {data, error} = await db.auth.signUp({email, password:pass});
   if (error) return showError(error.message);
   if (data.user) {
     await db.from('profiles').insert({id:data.user.id, nombre, rol:'socio'});
+    localStorage.removeItem('tmc_inv_valid');
     toast('Cuenta creada. ¡Bienvenido!');
   }
 }
@@ -859,25 +867,26 @@ async function loadRanking() {
   const profileMap = {};
   profiles?.forEach(p=>profileMap[p.id]=p);
 
-  // Filter profiles by discipline for this ranking
-  const discProfiles = currentRankTab === 'General' ? null :
-    new Set(profiles?.filter(p=>p.disciplina===currentRankTab).map(p=>p.id));
-
+  // Get checkins for ranking
   const {data:checkins} = await db.from('checkins').select('usuario_id,tipo').gte('fecha',dateFrom);
   let counts = {};
 
   checkins?.forEach(r=>{
-    if(currentRankTab==='General' || r.tipo===currentRankTab || (!r.tipo && currentRankTab==='General')){
-      if(!discProfiles || discProfiles.has(r.usuario_id))
-        counts[r.usuario_id]=(counts[r.usuario_id]||0)+1;
+    // For General: count all. For specific discipline: count by tipo or by user discipline
+    if (currentRankTab === 'General') {
+      counts[r.usuario_id] = (counts[r.usuario_id]||0) + 1;
+    } else if (r.tipo === currentRankTab) {
+      counts[r.usuario_id] = (counts[r.usuario_id]||0) + 1;
     }
   });
 
-  // If no discipline-filtered results, count all checkins for members of that discipline
-  if(!Object.keys(counts).length && discProfiles) {
+  // Fallback: if no tipo-filtered results, show all users of that discipline with their total checkins
+  if (!Object.keys(counts).length && currentRankTab !== 'General') {
     checkins?.forEach(r=>{
-      if(discProfiles.has(r.usuario_id))
-        counts[r.usuario_id]=(counts[r.usuario_id]||0)+1;
+      const prof = profileMap[r.usuario_id];
+      if (prof?.disciplina === currentRankTab || prof?.disciplina2 === currentRankTab) {
+        counts[r.usuario_id] = (counts[r.usuario_id]||0) + 1;
+      }
     });
   }
 
@@ -1318,11 +1327,13 @@ async function loadPerfil() {
 async function saveNombre() {
   const nombre = document.getElementById('p-nombre').value.trim();
   if (!nombre) return toast('Escribe tu nombre');
-  await db.from('profiles').update({nombre}).eq('id', currentUser.id);
+  const {error} = await db.from('profiles').update({nombre}).eq('id', currentUser.id);
+  if (error) { toast('Error: ' + error.message); return; }
   currentProfile.nombre = nombre;
-  document.getElementById('user-name-label').textContent = nombre;
+  if(document.getElementById('user-name-label')) document.getElementById('user-name-label').textContent = nombre;
+  if(document.getElementById('profile-name')) document.getElementById('profile-name').textContent = nombre;
+  if(document.getElementById('perfil-nombre')) document.getElementById('perfil-nombre').textContent = nombre;
   toast('Nombre actualizado');
-  loadInicio();
 }
 
 async function saveEmail() {
