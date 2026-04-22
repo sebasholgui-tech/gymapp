@@ -230,6 +230,10 @@ body.light .auth-tab.active{background:#f0f0f0!important;color:#1a1a1a!important
         <div style="flex:1">
           <div style="font-size:17px;font-weight:700;color:#fff" id="profile-name"></div>
           <div style="font-size:12px;color:#555;margin-top:2px" id="profile-role"></div>
+          <div style="display:flex;align-items:center;gap:6px;margin-top:6px;flex-wrap:wrap">
+            <div id="disc-display" style="cursor:pointer" onclick="openDiscModal()"></div>
+            <div id="belt-display" style="cursor:pointer;display:none" onclick="openDiscModal()"></div>
+          </div>
         </div>
         <div style="text-align:right">
           <div style="font-size:10px;color:#555;letter-spacing:.03em">Este mes</div>
@@ -251,9 +255,7 @@ body.light .auth-tab.active{background:#f0f0f0!important;color:#1a1a1a!important
       <div class="section-title">Próximas clases</div>
       <div id="proximas-clases"></div>
 
-      <!-- Hidden elements needed by JS -->
-      <div id="disc-display" style="display:none"></div>
-      <div id="belt-display" style="display:none"></div>
+
     </div>
 
     <!-- CLASES -->
@@ -925,7 +927,7 @@ async function loadRanking() {
   if (top3.length > 0) {
     const podOrder = top3.length===1?[0]:top3.length===2?[1,0]:[1,0,2];
     const podH = ['65px','90px','50px'];
-    const podMedal = ['🥈','🏆','🥉'];
+    const podMedal = ['🥈🔥🔥','🏆🔥🔥🔥','🥉🔥'];
     const podBorder = ['#C0C0C0','#FFD700','#CD7F32'];
     podHTML = `<div style="display:flex;align-items:flex-end;justify-content:center;gap:6px;margin-bottom:1.5rem;padding:0 4px">
       ${podOrder.map(i=>{
