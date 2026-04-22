@@ -1796,15 +1796,17 @@ async function loadTrofeos() {
   }
 
   const iconoTrofeo = {1:'🏆',2:'🥈',3:'🥉'};
+  const borderTrofeo = {1:'#FFD700',2:'#C0C0C0',3:'#CD7F32'};
   el.innerHTML = trofeos.map(t=>{
     const icon = iconoTrofeo[t.puesto]||'🎖️';
+    const border = borderTrofeo[t.puesto]||'#555';
     const [year,month] = t.mes.split('-');
     const meses = ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
-    const label = meses[parseInt(month)]+' '+year;
-    return `<div style="display:flex;flex-direction:column;align-items:center;gap:2px;background:#2a2a2a;border-radius:8px;padding:8px 10px;min-width:52px">
-      <span style="font-size:22px">${icon}</span>
-      <span style="font-size:9px;color:#888;font-weight:600">${t.disciplina.slice(0,3).toUpperCase()}</span>
-      <span style="font-size:9px;color:#555">${label}</span>
+    const label = meses[parseInt(month)]+"'"+year.slice(2);
+    return `<div style="display:flex;flex-direction:column;align-items:center;gap:1px;background:#1a1a1a;border:1.5px solid ${border}44;border-radius:8px;padding:6px 8px;min-width:44px">
+      <span style="font-size:16px">${icon}</span>
+      <span style="font-size:8px;color:${border};font-weight:700">${t.puesto}°</span>
+      <span style="font-size:8px;color:#555">${label}</span>
     </div>`;
   }).join('');
 
@@ -1916,7 +1918,9 @@ db.auth.onAuthStateChange((event, session) => {
 <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(()=>{});
+    navigator.serviceWorker.register('/sw.js').then(reg => {
+      reg.update();
+    }).catch(()=>{});
   });
 }
 </script>
