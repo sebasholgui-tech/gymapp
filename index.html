@@ -251,6 +251,12 @@ body.light .auth-tab.active{background:#f0f0f0!important;color:#1a1a1a!important
         <div class="stat-card"><div class="stat-label">Mi puesto</div><div class="stat-value" id="mi-puesto">—</div></div>
       </div>
 
+      <!-- Trophies -->
+      <div style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:12px;padding:14px 16px;margin-bottom:1.25rem">
+        <div style="font-size:11px;color:#555;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">Mis trofeos</div>
+        <div id="mis-trofeos" style="display:flex;flex-wrap:wrap;gap:8px;min-height:36px"></div>
+      </div>
+
 
 
 
@@ -733,6 +739,7 @@ async function loadInicio() {
 
 
   await loadPuesto();
+  await loadTrofeos();
 }
 
 
@@ -927,8 +934,8 @@ async function loadRanking() {
   const top3 = sorted.slice(0, Math.min(3, sorted.length));
   if (top3.length > 0) {
     const podOrder = top3.length===1?[0]:top3.length===2?[1,0]:[1,0,2];
-    const podH = ['90px','65px','50px'];
-    const podMedal = ['🏆🔥🔥🔥','🥈🔥🔥','🥉🔥'];
+    const podH = ['75px','55px','42px'];
+    const podMedal = ['🏆🔥','🥈🔥','🥉🔥'];
     const podBorder = ['#FFD700','#C0C0C0','#CD7F32'];
     podHTML = `<div style="display:flex;align-items:flex-end;justify-content:center;gap:6px;margin-bottom:1.5rem;padding:0 4px">
       ${podOrder.map(i=>{
@@ -942,13 +949,13 @@ async function loadRanking() {
         const d2b=DISCIPLINAS[disc2b]||DISCIPLINAS.MMA;
         const pos=i+1;
         return `<div style="flex:1;max-width:110px;display:flex;flex-direction:column;align-items:center;gap:3px">
-          <span style="font-size:${pos===1?'28px':'20px'}">${podMedal[i]}</span>
-          <div style="width:${pos===1?'58px':'44px'};height:${pos===1?'58px':'44px'};border-radius:50%;border:2.5px solid ${podBorder[i]};background:${d2b.color}22;display:flex;align-items:center;justify-content:center;font-size:${pos===1?'18px':'13px'};font-weight:700;color:${d2b.color};overflow:hidden">
+          <span style="font-size:${pos===1?'24px':'17px'}">${podMedal[i]}</span>
+          <div style="width:${pos===1?'52px':'38px'};height:${pos===1?'52px':'38px'};border-radius:50%;border:2px solid ${podBorder[i]};background:${d2b.color}22;display:flex;align-items:center;justify-content:center;font-size:${pos===1?'16px':'11px'};font-weight:700;color:${d2b.color};overflow:hidden">
             ${prof2?.avatar_url?`<img src="${prof2.avatar_url}" style="width:100%;height:100%;object-fit:cover">`:ini2}
           </div>
-          <div style="font-size:${pos===1?'13px':'11px'};font-weight:700;color:${isMe2?'#e63946':'#fff'};text-align:center;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${nom2}${isMe2?' (Tú)':''}</div>
-          <div style="font-size:10px;color:${podBorder[i]};font-weight:700">${clases2} clases</div>
-          <div style="background:${podBorder[i]};border-radius:6px 6px 0 0;width:100%;height:${podH[i]};display:flex;align-items:center;justify-content:center;font-size:${pos===1?'20px':'15px'};font-weight:800;color:#111">${pos}</div>
+          <div style="font-size:${pos===1?'12px':'10px'};font-weight:700;color:${isMe2?'#e63946':'#fff'};text-align:center;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${nom2}${isMe2?' (Tú)':''}</div>
+          <div style="font-size:10px;color:${podBorder[i]};font-weight:700">${clases2}cls</div>
+          <div style="background:${podBorder[i]};border-radius:6px 6px 0 0;width:100%;height:${podH[i]};display:flex;align-items:center;justify-content:center;font-size:${pos===1?'18px':'13px'};font-weight:800;color:#111">${pos}</div>
         </div>`;
       }).join('')}
     </div>`;
@@ -1772,6 +1779,71 @@ function toggleAdminSection(sec) {
   const open = el.style.display !== 'none';
   el.style.display = open ? 'none' : 'block';
   arr.textContent = open ? '›' : '⌄';
+}
+
+
+async function loadTrofeos() {
+  const {data:trofeos} = await db.from('trofeos')
+    .select('*').eq('usuario_id', currentUser.id)
+    .order('mes', {ascending:false});
+
+  const el = document.getElementById('mis-trofeos');
+  if (!el) return;
+
+  if (!trofeos?.length) {
+    el.innerHTML = '<div style="font-size:12px;color:#444;width:100%">Aún no tienes trofeos. ¡Queda primero en el ranking mensual!</div>';
+    return;
+  }
+
+  const iconoTrofeo = {1:'🏆',2:'🥈',3:'🥉'};
+  el.innerHTML = trofeos.map(t=>{
+    const icon = iconoTrofeo[t.puesto]||'🎖️';
+    const [year,month] = t.mes.split('-');
+    const meses = ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+    const label = meses[parseInt(month)]+' '+year;
+    return `<div style="display:flex;flex-direction:column;align-items:center;gap:2px;background:#2a2a2a;border-radius:8px;padding:8px 10px;min-width:52px">
+      <span style="font-size:22px">${icon}</span>
+      <span style="font-size:9px;color:#888;font-weight:600">${t.disciplina.slice(0,3).toUpperCase()}</span>
+      <span style="font-size:9px;color:#555">${label}</span>
+    </div>`;
+  }).join('');
+
+  // Auto-award trophy if user was #1 last month and not yet awarded
+  await checkAwardTrophy();
+}
+
+async function checkAwardTrophy() {
+  const now = new Date();
+  const lastMonth = new Date(now.getFullYear(), now.getMonth()-1, 1);
+  const mesPasado = lastMonth.toISOString().slice(0,7);
+
+  // Check if already awarded this month
+  const {data:existing} = await db.from('trofeos')
+    .select('id').eq('usuario_id', currentUser.id).eq('mes', mesPasado);
+  if (existing?.length) return;
+
+  // Get last month ranking
+  const {data:checkins} = await db.from('checkins')
+    .select('usuario_id').gte('fecha', mesPasado+'-01')
+    .lt('fecha', now.toISOString().slice(0,7)+'-01');
+
+  if (!checkins?.length) return;
+  const counts = {};
+  checkins.forEach(c=>counts[c.usuario_id]=(counts[c.usuario_id]||0)+1);
+  const sorted = Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+  const myPos = sorted.findIndex(([id])=>id===currentUser.id);
+
+  if (myPos >= 0 && myPos < 3) {
+    await db.from('trofeos').insert({
+      usuario_id: currentUser.id,
+      mes: mesPasado,
+      disciplina: currentProfile?.disciplina||'General',
+      puesto: myPos+1
+    });
+    const iconos = ['🏆','🥈','🥉'];
+    toast('¡Nuevo trofeo! ' + iconos[myPos] + ' ' + (myPos+1) + '° del mes pasado');
+    loadTrofeos();
+  }
 }
 
 db.auth.onAuthStateChange((event, session) => {
