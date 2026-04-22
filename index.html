@@ -85,6 +85,11 @@
   .color-opt{width:26px;height:26px;border-radius:50%;cursor:pointer;border:3px solid transparent}
   .color-opt.sel{border-color:#fff}
   .me-chip{font-size:11px;background:#0a2a0a;color:#5dba5d;padding:2px 8px;border-radius:20px;margin-left:6px;font-weight:600}
+  .bottom-nav{position:fixed;bottom:0;left:0;right:0;background:#111;border-top:1px solid #2a2a2a;display:flex;z-index:50;padding-bottom:env(safe-area-inset-bottom)}
+  .bnav-btn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:10px 4px 8px;background:transparent;border:none;cursor:pointer;color:#555;font-family:inherit;font-size:10px;font-weight:600;gap:4px;-webkit-tap-highlight-color:transparent}
+  .bnav-btn.active{color:#e63946}
+  .bnav-icon{font-size:20px;line-height:1}
+  .app-wrap{padding-bottom:70px}
   .rank-tab{background:#1a1a1a;border:1px solid #2a2a2a;border-radius:20px;padding:6px 14px;font-size:12px;cursor:pointer;color:#888;font-family:inherit;font-weight:600;white-space:nowrap}
   .rank-tab.active{background:#e63946;border-color:#e63946;color:#fff}
   .day-tab{background:#1a1a1a;border:1px solid #2a2a2a;border-radius:10px;padding:8px 14px;font-size:12px;cursor:pointer;color:#888;font-family:inherit;font-weight:600;white-space:nowrap;text-align:center;min-width:60px}
@@ -177,24 +182,45 @@ body.light .auth-tab.active{background:#f0f0f0!important;color:#1a1a1a!important
       <div style="display:flex;align-items:center;gap:8px">
         <div class="app-user" id="user-name-label"></div>
         <button id="theme-btn" onclick="toggleTheme()" style="background:none;border:1px solid #2a2a2a;border-radius:8px;padding:6px 10px;font-size:12px;cursor:pointer;color:#888;font-family:inherit">☀️</button>
-        <button onclick="showScreen('perfil');document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));document.querySelectorAll('.screen').forEach(s=>s.classList.remove('show'));document.getElementById('screen-perfil').classList.add('show');loadPerfil()" style="background:none;border:1px solid #2a2a2a;border-radius:8px;padding:6px 10px;font-size:12px;cursor:pointer;color:#888;font-family:inherit">⚙️</button>
-        <button class="btn-logout" onclick="doLogout()">Salir</button>
+        <button onclick="showScreen('perfil')" style="background:none;border:1px solid #2a2a2a;border-radius:8px;padding:6px 10px;font-size:12px;cursor:pointer;color:#888;font-family:inherit">⚙️</button>
+        
       </div>
     </div>
 
-    <div class="nav" id="main-nav">
-      <button class="nav-btn active" onclick="showScreen('inicio')">Inicio</button>
-      <button class="nav-btn" onclick="showScreen('clases')">Clases</button>
-      <button class="nav-btn" onclick="showScreen('calendario')">Calendario</button>
-      <button class="nav-btn" onclick="showScreen('ranking')">Ranking</button>
-      <button class="nav-btn hidden" id="nav-admin" onclick="showScreen('admin')">Admin</button>
+    <div id="main-nav" style="display:none">
+      <button class="nav-btn active" id="navbtn-inicio"></button>
+      <button class="nav-btn" id="navbtn-clases"></button>
+      <button class="nav-btn" id="navbtn-calendario"></button>
+      <button class="nav-btn" id="navbtn-ranking"></button>
+      <button class="nav-btn hidden" id="nav-admin"></button>
+    </div>
+    <div class="bottom-nav" id="bottom-nav">
+      <button class="bnav-btn active" id="bnav-inicio" onclick="showScreen('inicio')">
+        <span class="bnav-icon">🏠</span><span>Inicio</span>
+      </button>
+      <button class="bnav-btn" id="bnav-clases" onclick="showScreen('clases')">
+        <span class="bnav-icon">📅</span><span>Clases</span>
+      </button>
+      <button class="bnav-btn" id="bnav-calendario" onclick="showScreen('calendario')">
+        <span class="bnav-icon">🗓️</span><span>Mes</span>
+      </button>
+      <button class="bnav-btn" id="bnav-ranking" onclick="showScreen('ranking')">
+        <span class="bnav-icon">🏆</span><span>Ranking</span>
+      </button>
+      <button class="bnav-btn" id="bnav-perfil" onclick="showScreen('perfil')">
+        <span class="bnav-icon">👤</span><span>Perfil</span>
+      </button>
+      <button class="bnav-btn" id="bnav-admin" style="display:none" onclick="showScreen('admin')">
+        <span class="bnav-icon">🛡️</span><span>Admin</span>
+      </button>
     </div>
 
     <!-- INICIO -->
     <div id="screen-inicio" class="screen show">
+      <!-- Profile bar -->
       <div id="profile-bar" style="display:flex;align-items:center;gap:14px;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:12px;padding:14px 16px;margin-bottom:1.25rem">
         <div style="position:relative">
-          <div id="avatar-circle" style="width:52px;height:52px;border-radius:50%;background:#2a0a0a;border:2px solid #e63946;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:#e63946;overflow:hidden;cursor:pointer" onclick="document.getElementById('foto-input').click()">
+          <div id="avatar-circle" style="width:56px;height:56px;border-radius:50%;background:#2a0a0a;border:2px solid #e63946;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;color:#e63946;overflow:hidden;cursor:pointer" onclick="document.getElementById('foto-input').click()">
             <span id="avatar-initials"></span>
             <img id="avatar-img" style="display:none;width:100%;height:100%;object-fit:cover">
           </div>
@@ -202,26 +228,32 @@ body.light .auth-tab.active{background:#f0f0f0!important;color:#1a1a1a!important
           <input type="file" id="foto-input" accept="image/*" style="display:none" onchange="uploadFoto(event)">
         </div>
         <div style="flex:1">
-          <div style="font-size:16px;font-weight:700;color:#fff" id="profile-name"></div>
+          <div style="font-size:17px;font-weight:700;color:#fff" id="profile-name"></div>
           <div style="font-size:12px;color:#555;margin-top:2px" id="profile-role"></div>
-          <div style="display:flex;align-items:center;gap:6px;margin-top:6px;flex-wrap:wrap">
-            <div id="disc-display" style="cursor:pointer" onclick="openDiscModal()"></div>
-            <div id="belt-display" style="cursor:pointer;display:none" onclick="openBeltModal()"></div>
-          </div>
         </div>
         <div style="text-align:right">
-          <div style="font-size:11px;color:#555">Este mes</div>
-          <div style="font-size:22px;font-weight:700;color:#e63946" id="visitas-mes">—</div>
+          <div style="font-size:10px;color:#555;letter-spacing:.03em">Este mes</div>
+          <div style="font-size:30px;font-weight:800;color:#e63946;line-height:1" id="visitas-mes">—</div>
+          <div style="font-size:10px;color:#555">clases</div>
         </div>
       </div>
-      <div class="stats-grid">
+
+      <!-- Plan -->
+      <div id="plan-bar" style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:12px;padding:14px 16px;margin-bottom:1.25rem"></div>
+
+      <!-- Stats -->
+      <div class="stats-grid" style="grid-template-columns:repeat(2,1fr);margin-bottom:1.25rem">
         <div class="stat-card"><div class="stat-label">Total clases</div><div class="stat-value" id="mis-visitas">—</div></div>
         <div class="stat-card"><div class="stat-label">Mi puesto</div><div class="stat-value" id="mi-puesto">—</div></div>
-        <div class="stat-card"><div class="stat-label">Disciplina</div><div class="stat-value" id="mi-disciplina" style="font-size:14px">—</div></div>
       </div>
-      <div id="clase-ahora-wrap" style="margin-bottom:1.25rem"></div>
-      <div class="section-title">Últimas asistencias</div>
-      <div id="ultimas-entradas"></div>
+
+      <!-- Próximas clases -->
+      <div class="section-title">Próximas clases</div>
+      <div id="proximas-clases"></div>
+
+      <!-- Hidden elements needed by JS -->
+      <div id="disc-display" style="display:none"></div>
+      <div id="belt-display" style="display:none"></div>
     </div>
 
     <!-- CLASES -->
@@ -266,22 +298,62 @@ body.light .auth-tab.active{background:#f0f0f0!important;color:#1a1a1a!important
 
     <!-- PERFIL -->
     <div id="screen-perfil" class="screen">
-      <div style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:14px;padding:20px;margin-bottom:14px">
-        <div style="font-size:14px;font-weight:700;color:#fff;margin-bottom:16px">Editar perfil</div>
-        <div class="form-group"><label class="form-label">Nombre completo</label><input class="form-input" id="p-nombre" placeholder="Tu nombre"></div>
-        <button class="btn-main" onclick="saveNombre()" style="margin-bottom:0">Guardar nombre</button>
+      <!-- Profile header -->
+      <div id="perfil-header" style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:14px;padding:20px;margin-bottom:14px;text-align:center">
+        <div id="perfil-avatar" style="width:72px;height:72px;border-radius:50%;background:#2a0a0a;border:2px solid #e63946;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:700;color:#e63946;overflow:hidden;margin:0 auto 10px;cursor:pointer" onclick="document.getElementById('foto-input2').click()"></div>
+        <input type="file" id="foto-input2" accept="image/*" style="display:none" onchange="uploadFoto(event)">
+        <div style="font-size:17px;font-weight:700;color:#fff" id="perfil-nombre"></div>
+        <div style="font-size:12px;color:#555;margin-top:2px" id="perfil-email"></div>
+        <div id="perfil-plan" style="margin-top:8px"></div>
       </div>
-      <div style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:14px;padding:20px;margin-bottom:14px">
-        <div style="font-size:14px;font-weight:700;color:#fff;margin-bottom:16px">Cambiar email</div>
-        <div class="form-group"><label class="form-label">Nuevo email</label><input class="form-input" id="p-email" type="email" placeholder="nuevo@email.com"></div>
-        <button class="btn-main" onclick="saveEmail()" style="margin-bottom:0">Guardar email</button>
+
+      <!-- Settings menu -->
+      <div style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:14px;overflow:hidden;margin-bottom:14px">
+        <div onclick="togglePerfilSection('cuenta')" style="display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer;border-bottom:1px solid #2a2a2a">
+          <span style="font-size:20px">👤</span>
+          <div style="flex:1"><div style="font-size:14px;font-weight:600;color:#fff">Cuenta</div><div style="font-size:12px;color:#555">Nombre y email</div></div>
+          <span style="color:#555;font-size:16px" id="arr-cuenta">›</span>
+        </div>
+        <div id="sec-cuenta" style="display:none;padding:14px 16px;border-bottom:1px solid #2a2a2a;background:#111">
+          <div class="form-group"><label class="form-label">Nombre completo</label><input class="form-input" id="p-nombre" placeholder="Tu nombre"></div>
+          <div class="form-group"><label class="form-label">Email</label><input class="form-input" id="p-email" type="email" placeholder="nuevo@email.com"></div>
+          <button class="btn-main" onclick="saveNombre();saveEmail()" style="margin-bottom:0">Guardar cambios</button>
+        </div>
+
+        <div onclick="togglePerfilSection('pass')" style="display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer;border-bottom:1px solid #2a2a2a">
+          <span style="font-size:20px">🔒</span>
+          <div style="flex:1"><div style="font-size:14px;font-weight:600;color:#fff">Contraseña</div><div style="font-size:12px;color:#555">Cambiar contraseña</div></div>
+          <span style="color:#555;font-size:16px" id="arr-pass">›</span>
+        </div>
+        <div id="sec-pass" style="display:none;padding:14px 16px;border-bottom:1px solid #2a2a2a;background:#111">
+          <div class="form-group"><label class="form-label">Nueva contraseña</label><input class="form-input" id="p-pass1" type="password" placeholder="mínimo 6 caracteres"></div>
+          <div class="form-group"><label class="form-label">Repetir</label><input class="form-input" id="p-pass2" type="password" placeholder="repite la contraseña"></div>
+          <button class="btn-main" onclick="savePassword()" style="margin-bottom:0">Cambiar contraseña</button>
+        </div>
+
+        <div onclick="togglePerfilSection('factura')" style="display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer;border-bottom:1px solid #2a2a2a">
+          <span style="font-size:20px">💳</span>
+          <div style="flex:1"><div style="font-size:14px;font-weight:600;color:#fff">Plan y facturación</div><div style="font-size:12px;color:#555" id="plan-desc-perfil">Cargando...</div></div>
+          <span style="color:#555;font-size:16px" id="arr-factura">›</span>
+        </div>
+        <div id="sec-factura" style="display:none;padding:14px 16px;border-bottom:1px solid #2a2a2a;background:#111">
+          <div id="factura-content"></div>
+        </div>
+
+        <div onclick="togglePerfilSection('apariencia')" style="display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer">
+          <span style="font-size:20px">🎨</span>
+          <div style="flex:1"><div style="font-size:14px;font-weight:600;color:#fff">Apariencia</div><div style="font-size:12px;color:#555">Modo claro / oscuro</div></div>
+          <span style="color:#555;font-size:16px" id="arr-apariencia">›</span>
+        </div>
+        <div id="sec-apariencia" style="display:none;padding:14px 16px;background:#111">
+          <div style="display:flex;gap:10px">
+            <button onclick="setTheme('dark')" id="theme-dark-btn" style="flex:1;background:#2a2a2a;border:2px solid #e63946;border-radius:10px;padding:12px;color:#fff;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700">🌙 Oscuro</button>
+            <button onclick="setTheme('light')" id="theme-light-btn" style="flex:1;background:#2a2a2a;border:1px solid #3a3a3a;border-radius:10px;padding:12px;color:#888;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700">☀️ Claro</button>
+          </div>
+        </div>
       </div>
-      <div style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:14px;padding:20px">
-        <div style="font-size:14px;font-weight:700;color:#fff;margin-bottom:16px">Cambiar contraseña</div>
-        <div class="form-group"><label class="form-label">Nueva contraseña</label><input class="form-input" id="p-pass1" type="password" placeholder="mínimo 6 caracteres"></div>
-        <div class="form-group"><label class="form-label">Repetir contraseña</label><input class="form-input" id="p-pass2" type="password" placeholder="repite la contraseña"></div>
-        <button class="btn-main" onclick="savePassword()" style="margin-bottom:0">Cambiar contraseña</button>
-      </div>
+
+      <button onclick="doLogout()" style="width:100%;background:none;border:1px solid #2a2a2a;border-radius:12px;padding:14px;color:#e63946;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">Cerrar sesión</button>
     </div>
 
     <!-- ADMIN -->
@@ -294,6 +366,17 @@ body.light .auth-tab.active{background:#f0f0f0!important;color:#1a1a1a!important
       <div class="section-title">Gestión de clases</div>
       <div id="admin-clases"></div>
       <button class="btn-add" onclick="openModalClase()">+ Añadir clase</button>
+      <div class="section-title">Invitaciones</div>
+      <div style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:12px;padding:14px 16px;margin-bottom:14px">
+        <div style="font-size:13px;color:#fff;font-weight:600;margin-bottom:8px">Generar link de registro</div>
+        <div style="font-size:12px;color:#555;margin-bottom:10px">Solo quién tenga este link puede registrarse en el gym.</div>
+        <button onclick="generarInvitacion()" class="btn-main" style="margin-bottom:8px">Generar nuevo link</button>
+        <div id="inv-result" style="display:none;margin-top:8px">
+          <div style="font-size:11px;color:#555;margin-bottom:4px">Link de invitación:</div>
+          <div id="inv-link" style="background:#111;border:1px solid #2a2a2a;border-radius:8px;padding:8px 10px;font-size:11px;color:#1D9E75;word-break:break-all"></div>
+          <button onclick="copiarInvitacion()" style="width:100%;margin-top:8px;background:#1D9E75;border:none;border-radius:8px;padding:8px;font-size:13px;font-weight:700;color:#fff;cursor:pointer;font-family:inherit">Copiar link</button>
+        </div>
+      </div>
       <div class="section-title">Gestión de horas</div>
       <div id="admin-horas-list" style="margin-bottom:14px"></div>
       <div class="section-title">Buscar socios</div>
@@ -478,19 +561,22 @@ async function initApp(user) {
   document.getElementById('app-screen').classList.remove('hidden');
   if (profile?.rol === 'admin') {
     document.getElementById('nav-admin').classList.remove('hidden');
+    document.getElementById('bnav-admin').style.display = 'flex';
   }
   loadInicio();
 }
 
 function showScreen(name) {
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('show'));
-  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
-  document.getElementById('screen-'+name).classList.add('show');
-  event.target.classList.add('active');
+  document.querySelectorAll('.bnav-btn').forEach(b=>b.classList.remove('active'));
+  const sc = document.getElementById('screen-'+name);
+  if (sc) sc.classList.add('show');
+  const bb = document.getElementById('bnav-'+name);
+  if (bb) bb.classList.add('active');
   if (name==='clases') loadClases();
   if (name==='ranking') loadRanking();
   if (name==='admin') loadAdmin();
-  if (name==='perfil') loadPerfil();
+  if (name==='perfil') loadPerfilScreen();
   if (name==='calendario') loadCalendario();
 }
 
@@ -546,15 +632,18 @@ async function loadInicio() {
 
   const {data:total} = await db.from('checkins').select('id').eq('usuario_id', currentUser.id);
   const {data:mesData} = await db.from('checkins').select('id').eq('usuario_id', currentUser.id).gte('fecha', mes+'-01');
-  const {data:ultimas} = await db.from('checkins').select('fecha,tipo,created_at').eq('usuario_id', currentUser.id).order('created_at',{ascending:false}).limit(5);
 
   document.getElementById('mis-visitas').textContent = total?.length || 0;
   document.getElementById('visitas-mes').textContent = mesData?.length || 0;
 
   // Profile
   document.getElementById('profile-name').textContent = currentProfile?.nombre || '';
-  document.getElementById('profile-role').textContent = currentProfile?.rol === 'admin' ? 'Administrador' : 'Socio TMC';
-  const beltEl = document.getElementById('belt-display');
+  document.getElementById('profile-role').textContent = currentProfile?.rol === 'admin' ? 'Administrador' : 'Socio';
+  const initEl = document.getElementById('avatar-initials');
+  initEl.textContent = (currentProfile?.nombre||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+  showAvatar(currentProfile?.avatar_url);
+
+  // Discipline display
   const disc = currentProfile?.disciplina || 'MMA';
   const disc2 = currentProfile?.disciplina2 || null;
   const d = DISCIPLINAS[disc] || DISCIPLINAS.MMA;
@@ -563,89 +652,95 @@ async function loadInicio() {
   if (discEl) {
     const badge1 = `<span style="display:inline-flex;align-items:center;gap:4px;background:${d.color}22;border:1px solid ${d.color}44;border-radius:20px;padding:3px 8px;font-size:12px;font-weight:700;color:${d.color}">${d.label}</span>`;
     const badge2 = d2 ? `<span style="display:inline-flex;align-items:center;gap:4px;background:${d2.color}22;border:1px solid ${d2.color}44;border-radius:20px;padding:3px 8px;font-size:12px;font-weight:700;color:${d2.color}">${d2.label}</span>` : '';
-    discEl.innerHTML = `<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">${badge1}${badge2}<span style="font-size:10px;color:#444">· cambiar</span></div>`;
+    discEl.innerHTML = `<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;cursor:pointer" onclick="openDiscModal()">${badge1}${badge2}</div>`;
   }
+  const beltEl = document.getElementById('belt-display');
   const hasBJJ = disc === 'BJJ' || disc2 === 'BJJ';
   if (beltEl) {
     if (hasBJJ) {
       beltEl.style.display = 'inline-flex';
-      beltEl.innerHTML = `<div style="display:flex;align-items:center;gap:6px;margin-top:4px">${beltHTML(currentProfile?.cinturon_bjj||'blanco', currentProfile?.galones_bjj||0, 'sm')}<span style="font-size:10px;color:#444">· cinturón</span></div>`;
+      beltEl.innerHTML = beltHTML(currentProfile?.cinturon_bjj||'blanco', currentProfile?.galones_bjj||0, 'sm');
     } else {
       beltEl.style.display = 'none';
     }
   }
-  const initEl = document.getElementById('avatar-initials');
-  initEl.textContent = (currentProfile?.nombre||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
-  showAvatar(currentProfile?.avatar_url);
 
-  // Disciplina más frecuente
-  if (total?.length) {
-    const {data:tipos} = await db.from('checkins').select('tipo').eq('usuario_id', currentUser.id).not('tipo','is',null);
-    if (tipos?.length) {
-      const freq = {};
-      tipos.forEach(t=>freq[t.tipo]=(freq[t.tipo]||0)+1);
-      const top = Object.entries(freq).sort((a,b)=>b[1]-a[1])[0];
-      document.getElementById('mi-disciplina').textContent = top?.[0] || '—';
-    }
-  }
-
-  // Clase actual
-  const claseAhora = getClaseActual();
-  const wrapEl = document.getElementById('clase-ahora-wrap');
-  if (claseAhora) {
-    const color = TIPO_COLORS[claseAhora.tipo]||'#e63946';
-    wrapEl.innerHTML = `
-      <div style="background:#1a1a1a;border:1px solid ${color}44;border-left:3px solid ${color};border-radius:12px;padding:14px 16px;margin-bottom:10px">
-        <div style="font-size:11px;color:${color};font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">Clase en curso ahora</div>
-        <div style="font-size:16px;font-weight:700;color:#fff;margin-bottom:2px">${claseAhora.nombre}</div>
-        <div style="font-size:12px;color:#555;margin-bottom:12px">${claseAhora.hora}–${claseAhora.fin} · ${claseAhora.tipo}</div>
-        <button class="checkin-big" style="margin-bottom:0" onclick="doCheckin()">Registrar asistencia</button>
-      </div>`;
-  } else {
-    wrapEl.innerHTML = `
-      <div style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:12px;padding:14px 16px;text-align:center">
-        <div style="font-size:13px;color:#555;margin-bottom:4px">No hay clase en este momento</div>
-        <div style="font-size:11px;color:#333">El botón de asistencia aparece 15 min antes de cada clase</div>
-      </div>`;
-  }
-
-  // Últimas entradas
-  const el = document.getElementById('ultimas-entradas');
-  if (!ultimas?.length) {
-    el.innerHTML = '<div style="text-align:center;padding:2rem;color:#333;font-size:14px">Aún no tienes asistencias</div>';
-  } else {
-    el.innerHTML = ultimas.map(c=>{
-      const color = TIPO_COLORS[c.tipo]||'#555';
-      return `<div class="card"><div class="card-row">
-        <div style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0"></div>
-        <div class="person-info">
-          <div class="person-name">${formatDate(c.fecha)}</div>
-          <div class="person-sub">${c.tipo||'Clase'} · ${formatTime(c.created_at)}</div>
+  // Plan bar
+  const horas = currentProfile?.horas_mes || 0;
+  const usadas = mesData?.length || 0;
+  const planEl = document.getElementById('plan-bar');
+  if (horas === 0) {
+    planEl.innerHTML = `<div style="display:flex;align-items:center;justify-content:space-between">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font-size:22px">♾️</span>
+        <div>
+          <div style="font-size:13px;font-weight:700;color:#fff">Plan ilimitado</div>
+          <div style="font-size:11px;color:#555">Sin límite de clases</div>
         </div>
-      </div></div>`;
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:22px;font-weight:800;color:#1D9E75">${usadas}</div>
+        <div style="font-size:10px;color:#555">este mes</div>
+      </div>
+    </div>`;
+  } else {
+    const restantes = Math.max(0, horas - usadas);
+    const pct = Math.min(100, Math.round(usadas/horas*100));
+    const col = pct>=100?'#e63946':pct>=75?'#FF9800':'#1D9E75';
+    planEl.innerHTML = `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font-size:22px">⏱️</span>
+        <div>
+          <div style="font-size:13px;font-weight:700;color:#fff">Plan ${horas}h/mes</div>
+          <div style="font-size:11px;color:#555">${usadas} usadas · ${restantes} restantes</div>
+        </div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:22px;font-weight:800;color:${col}">${restantes}h</div>
+        <div style="font-size:10px;color:#555">restantes</div>
+      </div>
+    </div>
+    <div style="background:#2a2a2a;border-radius:6px;height:6px;overflow:hidden">
+      <div style="width:${pct}%;height:6px;background:${col};border-radius:6px"></div>
+    </div>
+    ${restantes===0?'<div style="font-size:11px;color:#e63946;font-weight:700;margin-top:6px;text-align:center">⚠️ Has agotado tus horas este mes</div>':''}`;
+  }
+
+  // Proximas clases reservadas
+  const diasMap = {1:'Lunes',2:'Martes',3:'Miércoles',4:'Jueves',5:'Viernes',6:'Sábado'};
+  const hoyDow = new Date().getDay();
+  const {data:reservas} = await db.from('reservas')
+    .select('clase_id, clases(nombre,dia,hora,color,duracion)')
+    .eq('usuario_id', currentUser.id);
+
+  const proximasEl = document.getElementById('proximas-clases');
+  if (!reservas?.length) {
+    proximasEl.innerHTML = '<div style="text-align:center;padding:1.5rem;color:#444;font-size:13px">No tienes clases reservadas.<br>Ve a <b style="color:#e63946">Clases</b> para apuntarte.</div>';
+  } else {
+    const sorted = reservas.filter(r=>r.clases).sort((a,b)=>{
+      const da = Object.keys(diasMap).find(k=>diasMap[k]===a.clases.dia)||7;
+      const db2 = Object.keys(diasMap).find(k=>diasMap[k]===b.clases.dia)||7;
+      if(da!==db2) return da-db2;
+      return (a.clases.hora||'').localeCompare(b.clases.hora||'');
+    });
+    proximasEl.innerHTML = sorted.slice(0,5).map(r=>{
+      const cl = r.clases;
+      const color = cl.color||'#e63946';
+      return `<div class="card" style="border-left:3px solid ${color};margin-bottom:8px">
+        <div class="card-row" style="padding:10px 14px">
+          <div style="flex:1">
+            <div style="font-size:14px;font-weight:700;color:#fff">${cl.nombre}</div>
+            <div style="font-size:12px;color:#555;margin-top:2px">${cl.dia} · ${cl.hora} · ${cl.duracion}</div>
+          </div>
+          <span style="font-size:11px;background:${color}22;color:${color};padding:3px 8px;border-radius:20px;font-weight:700">${cl.dia?.slice(0,3)}</span>
+        </div>
+      </div>`;
     }).join('');
   }
+
   await loadPuesto();
 }
 
-async function loadPuesto() {
-  const mes = new Date().toISOString().slice(0,7);
-  const {data} = await db.from('checkins').select('usuario_id').gte('fecha',mes+'-01');
-  if (!data) return;
-  const counts = {};
-  data.forEach(r=>counts[r.usuario_id]=(counts[r.usuario_id]||0)+1);
-  const sorted = Object.entries(counts).sort((a,b)=>b[1]-a[1]);
-  const pos = sorted.findIndex(([id])=>id===currentUser.id);
-  document.getElementById('mi-puesto').textContent = pos>=0 ? '#'+(pos+1) : '—';
-  // Top discipline
-  const {data:tipos} = await db.from('checkins').select('tipo').eq('usuario_id',currentUser.id).not('tipo','is',null);
-  if (tipos?.length) {
-    const freq = {};
-    tipos.forEach(t=>freq[t.tipo]=(freq[t.tipo]||0)+1);
-    const top = Object.entries(freq).sort((a,b)=>b[1]-a[1])[0];
-    document.getElementById('mi-disciplina').textContent = top?.[0] || '—';
-  }
-}
 
 async function doCheckin() {
   const hoy = new Date().toISOString().split('T')[0];
@@ -824,32 +919,58 @@ async function loadRanking() {
     return;
   }
 
-  el.innerHTML = sorted.map(([id,clases],i)=>{
+  // Build podium for top 3
+  let podHTML = '';
+  const top3 = sorted.slice(0, Math.min(3, sorted.length));
+  if (top3.length > 0) {
+    const podOrder = top3.length===1?[0]:top3.length===2?[1,0]:[1,0,2];
+    const podH = ['65px','90px','50px'];
+    const podMedal = ['🥈','🏆','🥉'];
+    const podBorder = ['#C0C0C0','#FFD700','#CD7F32'];
+    podHTML = `<div style="display:flex;align-items:flex-end;justify-content:center;gap:6px;margin-bottom:1.5rem;padding:0 4px">
+      ${podOrder.map(i=>{
+        if(!top3[i]) return '';
+        const [id2,clases2]=top3[i];
+        const prof2=profileMap[id2];
+        const nom2=prof2?.nombre||'Socio';
+        const ini2=nom2.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+        const isMe2=id2===currentUser.id;
+        const disc2b=prof2?.disciplina||'MMA';
+        const d2b=DISCIPLINAS[disc2b]||DISCIPLINAS.MMA;
+        const pos=i+1;
+        return `<div style="flex:1;max-width:110px;display:flex;flex-direction:column;align-items:center;gap:3px">
+          <span style="font-size:${pos===1?'28px':'20px'}">${podMedal[i]}</span>
+          <div style="width:${pos===1?'58px':'44px'};height:${pos===1?'58px':'44px'};border-radius:50%;border:2.5px solid ${podBorder[i]};background:${d2b.color}22;display:flex;align-items:center;justify-content:center;font-size:${pos===1?'18px':'13px'};font-weight:700;color:${d2b.color};overflow:hidden">
+            ${prof2?.avatar_url?`<img src="${prof2.avatar_url}" style="width:100%;height:100%;object-fit:cover">`:ini2}
+          </div>
+          <div style="font-size:${pos===1?'13px':'11px'};font-weight:700;color:${isMe2?'#e63946':'#fff'};text-align:center;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${nom2}${isMe2?' (Tú)':''}</div>
+          <div style="font-size:10px;color:${podBorder[i]};font-weight:700">${clases2} clases</div>
+          <div style="background:${podBorder[i]};border-radius:6px 6px 0 0;width:100%;height:${podH[i]};display:flex;align-items:center;justify-content:center;font-size:${pos===1?'20px':'15px'};font-weight:800;color:#111">${pos}</div>
+        </div>`;
+      }).join('')}
+    </div>`;
+  }
+
+  el.innerHTML = podHTML + (sorted.length > 3 ? `<div style="font-size:11px;color:#555;margin-bottom:8px;padding:0 4px">Resto del ranking</div>` : '') +
+  sorted.slice(3).map(([id,clases],ii)=>{
+    const i = ii+3;
     const prof = profileMap[id];
     const nombre = prof?.nombre||'Socio';
     const isMe = id===currentUser.id;
     const initials = nombre.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
     const pct = Math.round(clases/max*100);
-    const fires = i===0?'🔥🔥🔥':i===1?'🔥🔥':i===2?'🔥':'';
     const disc = prof?.disciplina||'MMA';
     const d = DISCIPLINAS[disc]||DISCIPLINAS.MMA;
-    const belt = (disc==='BJJ'&&prof?.cinturon_bjj) ? beltHTML(prof.cinturon_bjj,prof.galones_bjj||0,'sm') : '';
-    return `<div class="card" style="${isMe?'border:1.5px solid '+discColor:''}">
+    const belt = (disc==='BJJ'&&prof?.cinturon_bjj)?beltHTML(prof.cinturon_bjj,prof.galones_bjj||0,'sm'):'';
+    return `<div class="card" style="${isMe?'border:1.5px solid '+d.color:''}">
       <div class="card-row">
-        <div class="rank-num ${medals[i]||''}">${i+1}°</div>
-        <div style="width:36px;height:36px;border-radius:50%;background:${d.color}22;border:1.5px solid ${d.color}44;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:${d.color};overflow:hidden;flex-shrink:0">
-          ${prof?.avatar_url ? `<img src="${prof.avatar_url}" style="width:100%;height:100%;object-fit:cover">` : initials}
+        <div class="rank-num">${i+1}°</div>
+        <div style="width:34px;height:34px;border-radius:50%;background:${d.color}22;border:1.5px solid ${d.color}44;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:${d.color};overflow:hidden;flex-shrink:0">
+          ${prof?.avatar_url?`<img src="${prof.avatar_url}" style="width:100%;height:100%;object-fit:cover">`:initials}
         </div>
         <div style="flex:1;min-width:0">
-          <div class="person-name" style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">
-            ${nombre}${isMe?'<span class="me-chip">Tú</span>':''}
-            ${fires?`<span style="font-size:13px">${fires}</span>`:''}
-            ${belt}
-          </div>
-          <div style="display:flex;align-items:center;gap:4px;margin-top:3px">
-            ${iconSVG(d.icon,d.color,16)}
-            <div class="bar-wrap" style="margin:0"><div class="bar-fill" style="width:${pct}%;background:${d.color}"></div></div>
-          </div>
+          <div class="person-name" style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">${nombre}${isMe?'<span class="me-chip">Tú</span>':''}${belt}</div>
+          <div style="display:flex;align-items:center;gap:4px;margin-top:3px">${iconSVG(d.icon,d.color,14)}<div class="bar-wrap" style="margin:0"><div class="bar-fill" style="width:${pct}%;background:${d.color}"></div></div></div>
         </div>
         <div class="visits-badge" style="color:${d.color};font-size:12px">${clases}<br><span style="font-size:10px;color:#555">clases</span></div>
       </div>
@@ -1503,6 +1624,109 @@ function initTheme() {
 }
 
 initTheme();
+
+
+function togglePerfilSection(sec) {
+  const el = document.getElementById('sec-'+sec);
+  const arr = document.getElementById('arr-'+sec);
+  const open = el.style.display !== 'none';
+  ['cuenta','pass','factura','apariencia'].forEach(s=>{
+    document.getElementById('sec-'+s).style.display='none';
+    document.getElementById('arr-'+s).textContent='›';
+  });
+  if (!open) { el.style.display='block'; arr.textContent='⌄'; }
+}
+
+function setTheme(t) {
+  const isLight = t==='light';
+  document.body.classList.toggle('light', isLight);
+  localStorage.setItem('tmc_theme', t);
+  document.getElementById('theme-btn').textContent = isLight?'🌙':'☀️';
+  document.getElementById('theme-dark-btn').style.borderColor = !isLight?'#e63946':'#3a3a3a';
+  document.getElementById('theme-dark-btn').style.color = !isLight?'#fff':'#888';
+  document.getElementById('theme-light-btn').style.borderColor = isLight?'#e63946':'#3a3a3a';
+  document.getElementById('theme-light-btn').style.color = isLight?'#fff':'#888';
+}
+
+async function loadPerfilScreen() {
+  const nombre = currentProfile?.nombre || '';
+  const email = currentUser?.email || '';
+  const horas = currentProfile?.horas_mes || 0;
+
+  // Avatar
+  const av = document.getElementById('perfil-avatar');
+  if (av) {
+    if (currentProfile?.avatar_url) {
+      av.innerHTML = `<img src="${currentProfile.avatar_url}" style="width:100%;height:100%;object-fit:cover">`;
+    } else {
+      av.textContent = nombre.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+    }
+  }
+
+  if (document.getElementById('perfil-nombre')) document.getElementById('perfil-nombre').textContent = nombre;
+  if (document.getElementById('perfil-email')) document.getElementById('perfil-email').textContent = email;
+
+  // Plan
+  const planEl = document.getElementById('perfil-plan');
+  const planDesc = document.getElementById('plan-desc-perfil');
+  if (planEl) planEl.innerHTML = horas===0
+    ? '<span style="background:#1D9E7533;color:#1D9E75;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:700">♾️ Plan ilimitado</span>'
+    : `<span style="background:#e6394622;color:#e63946;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:700">⏱️ Plan ${horas}h/mes</span>`;
+  if (planDesc) planDesc.textContent = horas===0 ? 'Plan ilimitado activo' : `Plan ${horas}h/mes activo`;
+
+  // Factura content
+  const facEl = document.getElementById('factura-content');
+  const mes = new Date().toISOString().slice(0,7);
+  const {data:mesData} = await db.from('checkins').select('id').eq('usuario_id',currentUser.id).gte('fecha',mes+'-01');
+  const usadas = mesData?.length||0;
+  if (facEl) facEl.innerHTML = horas===0
+    ? `<div style="text-align:center;padding:1rem">
+        <div style="font-size:32px;margin-bottom:8px">♾️</div>
+        <div style="font-size:15px;font-weight:700;color:#fff">Plan ilimitado</div>
+        <div style="font-size:12px;color:#555;margin-top:4px">${usadas} clases este mes</div>
+      </div>`
+    : `<div style="text-align:center;padding:1rem">
+        <div style="font-size:32px;margin-bottom:8px">⏱️</div>
+        <div style="font-size:15px;font-weight:700;color:#fff">Plan ${horas} horas/mes</div>
+        <div style="font-size:12px;color:#555;margin-top:4px">${usadas} usadas · ${Math.max(0,horas-usadas)} restantes</div>
+        <div style="background:#2a2a2a;border-radius:6px;height:8px;overflow:hidden;margin-top:10px">
+          <div style="width:${Math.min(100,Math.round(usadas/horas*100))}%;height:8px;background:#e63946;border-radius:6px"></div>
+        </div>
+        <div style="font-size:11px;color:#555;margin-top:6px">Para cambiar tu plan habla con el gimnasio</div>
+      </div>`;
+
+  // Fill form fields
+  if (document.getElementById('p-nombre')) document.getElementById('p-nombre').value = nombre;
+  if (document.getElementById('p-email')) document.getElementById('p-email').value = email;
+}
+
+function loadPerfil() { loadPerfilScreen(); }
+
+
+async function generarInvitacion() {
+  const token = Math.random().toString(36).substring(2,10).toUpperCase();
+  const link = window.location.origin + '?inv=' + token;
+  await db.from('profiles').update({}).eq('id', currentUser.id); // dummy to check connection
+  // Store token in a simple way
+  localStorage.setItem('tmc_inv_token', token);
+  document.getElementById('inv-result').style.display = 'block';
+  document.getElementById('inv-link').textContent = link;
+  toast('Link generado');
+}
+
+function copiarInvitacion() {
+  const link = document.getElementById('inv-link').textContent;
+  navigator.clipboard.writeText(link).then(()=>toast('Link copiado al portapapeles'));
+}
+
+function checkInvToken() {
+  const params = new URLSearchParams(window.location.search);
+  const inv = params.get('inv');
+  const saved = localStorage.getItem('tmc_inv_token');
+  if (inv && inv === saved) {
+    localStorage.setItem('tmc_inv_valid', '1');
+  }
+}
 
 db.auth.onAuthStateChange((event, session) => {
   if (event === 'PASSWORD_RECOVERY') {
