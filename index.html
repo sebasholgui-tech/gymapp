@@ -411,16 +411,6 @@ body.light .auth-tab.active{background:#f0f0f0!important;color:#1a1a1a!important
   <div class="modal-box">
     <div class="modal-title">Nueva clase</div>
     <div class="form-group"><label class="form-label">Nombre</label><input class="form-input" id="m-nombre" placeholder="Yoga, HIIT, Spinning..."></div>
-    <div class="form-group"><label class="form-label">Instructor</label>
-      <select class="form-input" id="m-instructor" style="color:#fff;background:#111">
-        <option value="">Seleccionar instructor</option>
-        <option value="Jeffry">Jeffry</option>
-        <option value="Mario">Mario</option>
-        <option value="Pau">Pau</option>
-        <option value="Manel">Manel</option>
-        <option value="Joan">Joan</option>
-      </select>
-    </div>
     <div class="form-group" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
       <div><label class="form-label">Hora</label><input class="form-input" id="m-hora" placeholder="08:00"></div>
       <div><label class="form-label">Duración</label><input class="form-input" id="m-duracion" placeholder="60 min"></div>
@@ -428,6 +418,28 @@ body.light .auth-tab.active{background:#f0f0f0!important;color:#1a1a1a!important
     <div class="form-group" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
       <div><label class="form-label">Día</label><input class="form-input" id="m-dia" placeholder="Lunes"></div>
       <div><label class="form-label">Plazas</label><input class="form-input" type="number" id="m-plazas" placeholder="15" value="15"></div>
+    </div>
+    <div class="form-group" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <div><label class="form-label">Instructor</label>
+        <select class="form-input" id="m-instructor" style="color:#fff;background:#111;height:38px">
+          <option value="">Seleccionar</option>
+          <option value="Jeffry">Jeffry</option>
+          <option value="Mario">Mario</option>
+          <option value="Pau">Pau</option>
+          <option value="Manel">Manel</option>
+          <option value="Joan">Joan</option>
+        </select>
+      </div>
+      <div><label class="form-label">Tipo</label>
+        <select class="form-input" id="m-tipo" style="color:#fff;background:#111;height:38px">
+          <option value="MMA">MMA</option>
+          <option value="BJJ">BJJ</option>
+          <option value="NoGi">NoGi</option>
+          <option value="Striking">Striking</option>
+          <option value="Boxeo">Boxeo</option>
+          <option value="Kids">Kids</option>
+        </select>
+      </div>
     </div>
     <label class="form-label">Color</label>
     <div class="color-opts" id="color-opts"></div>
