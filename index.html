@@ -607,6 +607,7 @@ async function initApp(user) {
     document.getElementById('bnav-admin').style.display = 'flex';
   }
   loadInicio();
+  loadNotificaciones();
 }
 
 function showScreen(name) {
@@ -764,10 +765,18 @@ async function doCheckin() {
     .eq('usuario_id',currentUser.id).eq('fecha',hoy).eq('tipo',claseAhora.tipo);
   if (existing?.length) { toast('Ya registraste asistencia en esta clase hoy'); return; }
 
+  // Find clase_id from DB matching current class
+  const {data:dbClases} = await db.from('clases').select('id,nombre,dia,hora')
+    .eq('dia', claseAhora.dia).eq('hora', claseAhora.hora).eq('nombre', claseAhora.nombre);
+  const claseId = dbClases?.[0]?.id || null;
+
   const {error} = await db.from('checkins').insert({
     usuario_id: currentUser.id,
     fecha: hoy,
-    tipo: claseAhora.tipo
+    tipo: claseAhora.tipo,
+    clase_id: claseId,
+    nombre_clase: claseAhora.nombre,
+    hora_clase: claseAhora.hora
   });
   if (error) { toast('Error al registrar'); return; }
   toast('Asistencia registrada en ' + claseAhora.nombre + '!');
@@ -828,9 +837,11 @@ async function loadClases() {
           <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
           ${isPast ? 
             `<span style="font-size:11px;color:#555;font-style:italic">Clase finalizada</span>` :
-            `<button class="btn-reservar ${reservado?'reservado':(lleno&&!reservado?'lleno':'')}" onclick="${onclk}">
-              ${reservado?'Apuntado ✓':(lleno&&!reservado?'Lleno':'Apuntarme')}
-            </button>`
+            reservado ? 
+            `<button class="btn-reservar reservado" onclick="${onclk}">Apuntado ✓</button>` :
+            lleno ?
+            `<button onclick="unirseListaEspera('${clId}')" style="background:#FF980022;border:1px solid #FF980055;border-radius:8px;padding:7px 10px;font-size:11px;cursor:pointer;color:#FF9800;font-family:inherit;font-weight:700;white-space:nowrap">⏳ Lista espera</button>` :
+            `<button class="btn-reservar" onclick="${onclk}">Apuntarme</button>`
           }
           ${reservado && clId && !isPast ? `<button onclick="cancelarReserva('${clId}','${cl.hora}','${selectedDay}')" style="background:none;border:none;cursor:pointer;color:#e63946;font-size:11px;font-family:inherit;padding:0;text-decoration:underline">Cancelar reserva</button>` : ''}
           ${!reservado && clId ? `<button onclick="verApuntados('${clId}','${cl.nombre}','${color}')" style="background:none;border:none;cursor:pointer;color:#555;font-size:11px;margin-top:0;font-family:inherit;padding:0">${ocupadas} apuntados 👥</button>` : ''}
@@ -1502,8 +1513,8 @@ async function loadCalendario() {
   checkins?.forEach(c => {
     const day = parseInt(c.fecha.split('-')[2]);
     const cl = c.clase_id ? claseMap[c.clase_id] : null;
-    const nombre = cl ? cl.nombre : (c.tipo||'Clase');
-    const hora = cl ? cl.hora : '';
+    const nombre = cl ? cl.nombre : (c.nombre_clase || c.tipo || 'Clase');
+    const hora = cl ? cl.hora : (c.hora_clase || '');
     const color = cl ? (cl.color||TIPO_COLORS[c.tipo]||'#e63946') : (TIPO_COLORS[c.tipo]||'#e63946');
     if (!checkinDays[day]) checkinDays[day] = [];
     checkinDays[day].push({nombre, hora, color, tipo: c.tipo});
@@ -1930,6 +1941,58 @@ async function procesarPagoDemo() {
   btn.disabled = false;
 }
 
+
+async function loadNotificaciones() {
+  const {data:notifs} = await db.from('notificaciones')
+    .select('*').eq('usuario_id', currentUser.id)
+    .order('created_at', {ascending:false}).limit(20);
+
+  const unread = notifs?.filter(n=>!n.leida).length||0;
+  const badge = document.getElementById('notif-badge');
+  if (badge) {
+    if (unread > 0) {
+      badge.textContent = unread;
+      badge.style.display = 'flex';
+    } else {
+      badge.style.display = 'none';
+    }
+  }
+  return notifs;
+}
+
+async function showNotificaciones() {
+  document.getElementById('modal-notif-bg').style.display = 'flex';
+  const notifs = await loadNotificaciones();
+  const el = document.getElementById('notif-list');
+
+  if (!notifs?.length) {
+    el.innerHTML = '<div style="text-align:center;padding:2rem;color:#555;font-size:13px">No tienes notificaciones</div>';
+    return;
+  }
+
+  el.innerHTML = notifs.map(n=>{
+    const fecha = new Date(n.created_at).toLocaleDateString('es-ES',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+    return `<div onclick="marcarLeida('${n.id}')" style="padding:12px;border-bottom:1px solid #2a2a2a;cursor:pointer;background:${n.leida?'transparent':'#e6394611'};border-radius:8px;margin-bottom:4px">
+      <div style="display:flex;align-items:flex-start;gap:10px">
+        <span style="font-size:20px">${n.leida?'🔔':'🔴'}</span>
+        <div style="flex:1">
+          <div style="font-size:13px;color:#fff;font-weight:${n.leida?'400':'600'}">${n.mensaje}</div>
+          <div style="font-size:11px;color:#555;margin-top:4px">${fecha}</div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Mark all as read
+  await db.from('notificaciones').update({leida:true})
+    .eq('usuario_id',currentUser.id).eq('leida',false);
+  loadNotificaciones();
+}
+
+async function marcarLeida(id) {
+  await db.from('notificaciones').update({leida:true}).eq('id',id);
+}
+
 db.auth.onAuthStateChange((event, session) => {
   if (event === 'PASSWORD_RECOVERY') {
     document.getElementById('auth-screen').classList.add('hidden');
@@ -2060,6 +2123,17 @@ if ('serviceWorker' in navigator) {
     <div style="font-size:13px;color:#888;margin-bottom:20px">Tu suscripción está activa. Recibirás un recibo en tu email.</div>
     <button onclick="document.getElementById('modal-stripe-ok').style.display='none';document.getElementById('modal-stripe-bg').style.display='none'" style="width:100%;background:#635BFF;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:700;color:#fff;cursor:pointer;font-family:inherit">Volver a la app</button>
     <div style="font-size:10px;color:#bbb;margin-top:10px">⚠️ Esto es una demo — no se ha cobrado nada</div>
+  </div>
+</div>
+
+<!-- NOTIFICACIONES -->
+<div id="modal-notif-bg" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:200;align-items:flex-start;justify-content:center;padding-top:70px">
+  <div style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:16px;width:100%;max-width:500px;max-height:70vh;overflow-y:auto;margin:0 1rem">
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:16px;border-bottom:1px solid #2a2a2a;position:sticky;top:0;background:#1a1a1a">
+      <div style="font-size:15px;font-weight:700;color:#fff">Notificaciones</div>
+      <button onclick="document.getElementById('modal-notif-bg').style.display='none'" style="background:none;border:none;color:#888;font-size:20px;cursor:pointer">✕</button>
+    </div>
+    <div id="notif-list" style="padding:8px"></div>
   </div>
 </div>
 </body>
