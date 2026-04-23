@@ -307,6 +307,7 @@ body.light .auth-tab.active{background:#f0f0f0!important;color:#1a1a1a!important
         <div style="font-size:17px;font-weight:700;color:#fff" id="perfil-nombre"></div>
         <div style="font-size:12px;color:#555;margin-top:2px" id="perfil-email"></div>
         <div id="perfil-plan" style="margin-top:8px"></div>
+        <div id="perfil-antiguedad" style="margin-top:8px;font-size:12px;color:#555"></div>
       </div>
 
       <!-- Settings menu -->
@@ -410,7 +411,16 @@ body.light .auth-tab.active{background:#f0f0f0!important;color:#1a1a1a!important
   <div class="modal-box">
     <div class="modal-title">Nueva clase</div>
     <div class="form-group"><label class="form-label">Nombre</label><input class="form-input" id="m-nombre" placeholder="Yoga, HIIT, Spinning..."></div>
-    <div class="form-group"><label class="form-label">Instructor</label><input class="form-input" id="m-instructor" placeholder="Nombre del instructor"></div>
+    <div class="form-group"><label class="form-label">Instructor</label>
+      <select class="form-input" id="m-instructor" style="color:#fff;background:#111">
+        <option value="">Seleccionar instructor</option>
+        <option value="Jeffry">Jeffry</option>
+        <option value="Mario">Mario</option>
+        <option value="Pau">Pau</option>
+        <option value="Manel">Manel</option>
+        <option value="Joan">Joan</option>
+      </select>
+    </div>
     <div class="form-group" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
       <div><label class="form-label">Hora</label><input class="form-input" id="m-hora" placeholder="08:00"></div>
       <div><label class="form-label">Duración</label><input class="form-input" id="m-duracion" placeholder="60 min"></div>
@@ -1667,6 +1677,22 @@ async function loadPerfilScreen() {
   if (planEl) planEl.innerHTML = horas===0
     ? '<span style="background:#1D9E7533;color:#1D9E75;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:700">♾️ Plan ilimitado</span>'
     : `<span style="background:#e6394622;color:#e63946;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:700">⏱️ Plan ${horas}h/mes</span>`;
+
+  // Antiguedad
+  const antiguedadEl = document.getElementById('perfil-antiguedad');
+  if (antiguedadEl && currentProfile?.created_at) {
+    const fechaAlta = new Date(currentProfile.created_at);
+    const ahora = new Date();
+    const meses = Math.floor((ahora - fechaAlta) / (1000 * 60 * 60 * 24 * 30));
+    const anios = Math.floor(meses / 12);
+    const mesesResto = meses % 12;
+    let antiguedadStr = '';
+    if (anios > 0) antiguedadStr += anios + (anios===1?' año':' años');
+    if (mesesResto > 0) antiguedadStr += (anios>0?' y ':'')+mesesResto+(mesesResto===1?' mes':' meses');
+    if (meses === 0) antiguedadStr = 'Nuevo socio';
+    const fechaLabel = fechaAlta.toLocaleDateString('es-ES',{day:'numeric',month:'long',year:'numeric'});
+    antiguedadEl.innerHTML = `<span style="background:#2a2a2a;border-radius:20px;padding:4px 12px;font-size:11px;color:#888">🗓️ Socio desde ${fechaLabel} · ${antiguedadStr}</span>`;
+  }
   if (planDesc) planDesc.textContent = horas===0 ? 'Plan ilimitado activo' : `Plan ${horas}h/mes activo`;
 
   // Factura content
