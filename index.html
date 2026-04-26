@@ -451,35 +451,7 @@ body.light .auth-tab.active{background:#f0f0f0!important;color:#1a1a1a!important
 
 <div class="toast" id="toast"></div>
 
-<script>
-const SUPABASE_URL = 'https://tdkpntrvbujxbgezlayg.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_SNsgBqoF6ZoN8JGMxtTOQw_rXV_sqYj';
-const { createClient } = supabase;
-const db = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-
-db.auth.onAuthStateChange((event, session) => {
-  if (event === 'PASSWORD_RECOVERY') {
-    document.getElementById('auth-screen').classList.add('hidden');
-    document.getElementById('app-screen').classList.add('hidden');
-    document.getElementById('reset-screen').classList.remove('hidden');
-  } else if (event === 'SIGNED_IN') {
-    const hash = window.location.hash;
-    if (hash && hash.includes('type=recovery')) {
-      document.getElementById('auth-screen').classList.add('hidden');
-      document.getElementById('app-screen').classList.add('hidden');
-      document.getElementById('reset-screen').classList.remove('hidden');
-    } else {
-      document.getElementById('reset-screen').classList.add('hidden');
-      initApp(session.user);
-    }
-  } else if (!session) {
-    document.getElementById('auth-screen').classList.remove('hidden');
-    document.getElementById('app-screen').classList.add('hidden');
-    document.getElementById('reset-screen').classList.add('hidden');
-  }
-});
-</script>
 
 
 <!-- DISCIPLINE MODAL -->
@@ -524,16 +496,6 @@ db.auth.onAuthStateChange((event, session) => {
     <div style="color:#555;font-size:11px;margin-top:16px">Pulsa para cerrar</div>
   </div>
 </div>
-
-<script>
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').then(reg => {
-      reg.update();
-    }).catch(()=>{});
-  });
-}
-</script>
 
 <!-- STRIPE DEMO MODAL -->
 <div id="modal-stripe-bg" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.9);z-index:300;align-items:center;justify-content:center;padding:1rem">
@@ -625,6 +587,34 @@ if ('serviceWorker' in navigator) {
 </div>
 
 <script>
+const SUPABASE_URL = 'https://tdkpntrvbujxbgezlayg.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_SNsgBqoF6ZoN8JGMxtTOQw_rXV_sqYj';
+const { createClient } = supabase;
+const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+
+db.auth.onAuthStateChange((event, session) => {
+  if (event === 'PASSWORD_RECOVERY') {
+    document.getElementById('auth-screen').classList.add('hidden');
+    document.getElementById('app-screen').classList.add('hidden');
+    document.getElementById('reset-screen').classList.remove('hidden');
+  } else if (event === 'SIGNED_IN') {
+    const hash = window.location.hash;
+    if (hash && hash.includes('type=recovery')) {
+      document.getElementById('auth-screen').classList.add('hidden');
+      document.getElementById('app-screen').classList.add('hidden');
+      document.getElementById('reset-screen').classList.remove('hidden');
+    } else {
+      document.getElementById('reset-screen').classList.add('hidden');
+      initApp(session.user);
+    }
+  } else if (!session) {
+    document.getElementById('auth-screen').classList.remove('hidden');
+    document.getElementById('app-screen').classList.add('hidden');
+    document.getElementById('reset-screen').classList.add('hidden');
+  }
+});
+
 const CLASE_COLORS = ['#7F77DD','#1D9E75','#D85A30','#378ADD','#D4537E','#BA7517'];
 let selColor = CLASE_COLORS[0];
 let currentUser = null;
@@ -758,51 +748,7 @@ async function doRegister() {
     toast('Cuenta creada. ¡Bienvenido!');
   }
 }
-async function doRecovery() {
-  const email = document.getElementById('recovery-email').value.trim();
-  if (!email) return showError('Introduce tu email');
-  const {error} = await db.auth.resetPasswordForEmail(email, {
-    redirectTo: 'https://gymapp-smoky-pi.vercel.app/reset'
-  });
-  if (error) return showError('Error al enviar el email');
-  document.getElementById('auth-error').style.display='none';
-  showSuccess('Te hemos enviado un enlace a tu email. Revisa tu bandeja de entrada.');
-}
 
-async function doLogin() {
-  const email = document.getElementById('login-email').value.trim();
-  const pass = document.getElementById('login-pass').value;
-  if (!email||!pass) return showError('Rellena todos los campos');
-  const {error} = await db.auth.signInWithPassword({email, password:pass});
-  if (error) return showError('Email o contraseña incorrectos');
-}
-
-async function doRegister() {
-  const nombre = sanitize(document.getElementById('reg-name').value);
-  const email = document.getElementById('reg-email').value.trim().toLowerCase();
-  const pass = document.getElementById('reg-pass').value;
-  if (!nombre||!email||!pass) return showError('Rellena todos los campos');
-  if (nombre.length < 2) return showError('Nombre demasiado corto');
-  if (!validateEmail(email)) return showError('Email no válido');
-  if (!validatePassword(pass)) return showError('La contraseña debe tener entre 6 y 100 caracteres');
-  if (!rateLimiter.check('register', 3, 300000))
-    return showError('Demasiados intentos. Espera 5 minutos.');
-  // Check invitation token from URL
-  const urlInv = new URLSearchParams(window.location.search).get('inv');
-  const invValid = urlInv ? await validateInviteToken(urlInv) : false;
-  const localValid = localStorage.getItem('tmc_inv_valid') === '1';
-  if (!invValid && !localValid) {
-    return showError('Necesitas un link de invitación válido del gimnasio.');
-  }
-  const {data, error} = await db.auth.signUp({email, password:pass});
-  if (error) return showError(error.message);
-  if (data.user) {
-    await db.from('profiles').insert({id:data.user.id, nombre, rol:'socio'});
-    if (urlInv) await markInviteUsed(urlInv);
-    localStorage.removeItem('tmc_inv_valid');
-    toast('Cuenta creada. ¡Bienvenido!');
-  }
-}
 
 async function doLogout() {
   await db.auth.signOut();
@@ -2204,6 +2150,15 @@ async function showNotificaciones() {
 
 async function marcarLeida(id) {
   await db.from('notificaciones').update({leida:true}).eq('id',id);
+}
+</script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').then(reg => {
+      reg.update();
+    }).catch(()=>{});
+  });
 }
 </script>
 </body>
