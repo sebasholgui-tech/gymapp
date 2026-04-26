@@ -593,6 +593,72 @@ const { createClient } = supabase;
 const db = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 
+
+let adminEditDisc = 'MMA';
+let adminEditDisc2 = '';
+let adminEditBelt = 'blanco';
+let adminEditGalones = 0;
+
+function editarSocioPerfil(uid, nombre, disc, disc2, belt, galones) {
+  if (!uid) {
+    const s = allSocios.find(x=>x.id===window._editId);
+    if (!s) { toast('Error al cargar socio'); return; }
+    uid=s.id; nombre=s.nombre; disc=s.disciplina||'MMA'; disc2=s.disciplina2||''; belt=s.cinturon_bjj||'blanco'; galones=s.galones_bjj||0;
+  }
+  adminEditDisc = disc;
+  adminEditDisc2 = disc2;
+  adminEditBelt = belt;
+  adminEditGalones = galones;
+  document.getElementById('admin-edit-uid').value = uid;
+  document.getElementById('admin-edit-nombre').textContent = nombre;
+  renderAdminDiscOpts();
+  renderAdminBeltOpts();
+  document.getElementById('modal-admin-socio-bg').style.display = 'flex';
+}
+
+function renderAdminDiscOpts() {
+  const hasBJJ = adminEditDisc==='BJJ'||adminEditDisc2==='BJJ';
+  document.getElementById('admin-belt-section').style.display = hasBJJ?'block':'none';
+  const el1 = document.getElementById('admin-disc-opts');
+  const el2 = document.getElementById('admin-disc2-opts');
+  if (!el1||!el2) return;
+  el1.innerHTML = Object.entries(DISCIPLINAS).map(([key,d])=>`
+    <div onclick="adminEditDisc='${key}';renderAdminDiscOpts()" style="cursor:pointer;border:1.5px solid ${key===adminEditDisc?d.color:'#2a2a2a'};border-radius:8px;padding:6px;text-align:center;background:${key===adminEditDisc?d.color+'22':'#111'}">
+      <div style="font-size:10px;font-weight:700;color:${key===adminEditDisc?d.color:'#666'}">${d.label}</div>
+    </div>`).join('');
+  el2.innerHTML = '<div onclick="adminEditDisc2=\'\';renderAdminDiscOpts()" style="cursor:pointer;border:1.5px solid '+(adminEditDisc2===''?'#e63946':'#2a2a2a')+';border-radius:8px;padding:6px;text-align:center;background:'+(adminEditDisc2===''?'#e6394622':'#111')+'"><div style="font-size:10px;font-weight:700;color:'+(adminEditDisc2===''?'#e63946':'#666')+'">Ninguna</div></div>'
+    + Object.entries(DISCIPLINAS).map(([key,d])=>`
+    <div onclick="adminEditDisc2='${key}';renderAdminDiscOpts()" style="cursor:pointer;border:1.5px solid ${key===adminEditDisc2?d.color:'#2a2a2a'};border-radius:8px;padding:6px;text-align:center;background:${key===adminEditDisc2?d.color+'22':'#111'}">
+      <div style="font-size:10px;font-weight:700;color:${key===adminEditDisc2?d.color:'#666'}">${d.label}</div>
+    </div>`).join('');
+}
+
+function renderAdminBeltOpts() {
+  const beltEl = document.getElementById('admin-belt-opts');
+  const galonEl = document.getElementById('admin-galon-opts');
+  if (!beltEl||!galonEl) return;
+  beltEl.innerHTML = Object.entries(CINTURONES).map(([key,b])=>`
+    <div onclick="adminEditBelt='${key}';renderAdminBeltOpts()" style="cursor:pointer;padding:3px;border-radius:4px;border:2px solid ${adminEditBelt===key?'#fff':'transparent'}">
+      ${beltHTML(key,0,'sm')}
+    </div>`).join('');
+  galonEl.innerHTML = [0,1,2,3,4].map(g=>`
+    <div onclick="adminEditGalones=${g};renderAdminBeltOpts()" style="cursor:pointer;width:28px;height:28px;border-radius:50%;border:1.5px solid ${adminEditGalones===g?'#e63946':'#2a2a2a'};background:${adminEditGalones===g?'#2a0a0a':'#111'};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:${adminEditGalones===g?'#e63946':'#888'}">${g}</div>`).join('');
+}
+
+async function guardarPerfilSocio() {
+  const uid = document.getElementById('admin-edit-uid').value;
+  const updates = {disciplina: adminEditDisc, disciplina2: adminEditDisc2||null};
+  if (adminEditDisc==='BJJ'||adminEditDisc2==='BJJ') {
+    updates.cinturon_bjj = adminEditBelt;
+    updates.galones_bjj = adminEditGalones;
+  }
+  const {error} = await db.from('profiles').update(updates).eq('id', uid);
+  if (error) { toast('Error al guardar'); return; }
+  toast('Perfil actualizado');
+  document.getElementById('modal-admin-socio-bg').style.display = 'none';
+  loadAdmin();
+}
+
 db.auth.onAuthStateChange((event, session) => {
   if (event === 'PASSWORD_RECOVERY') {
     document.getElementById('auth-screen').classList.add('hidden');
