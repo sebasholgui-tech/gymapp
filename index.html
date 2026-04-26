@@ -234,8 +234,8 @@ body.light .auth-tab.active{background:#f0f0f0!important;color:#1a1a1a!important
           <div style="font-size:17px;font-weight:700;color:#fff" id="profile-name"></div>
           <div style="font-size:12px;color:#555;margin-top:2px" id="profile-role"></div>
           <div style="display:flex;align-items:center;gap:6px;margin-top:6px;flex-wrap:wrap">
-            <div id="disc-display" style="cursor:pointer" onclick="openDiscModal()"></div>
-            <div id="belt-display" style="cursor:pointer;display:none" onclick="openDiscModal()"></div>
+            <div id="disc-display" style="cursor:pointer"></div>
+            <div id="belt-display" style="cursor:pointer;display:none"></div>
           </div>
         </div>
         <div style="text-align:right">
@@ -857,7 +857,7 @@ async function loadInicio() {
   if (discEl) {
     const badge1 = `<span style="display:inline-flex;align-items:center;gap:4px;background:${d.color}22;border:1px solid ${d.color}44;border-radius:20px;padding:3px 8px;font-size:12px;font-weight:700;color:${d.color}">${d.label}</span>`;
     const badge2 = d2 ? `<span style="display:inline-flex;align-items:center;gap:4px;background:${d2.color}22;border:1px solid ${d2.color}44;border-radius:20px;padding:3px 8px;font-size:12px;font-weight:700;color:${d2.color}">${d2.label}</span>` : '';
-    discEl.innerHTML = `<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;cursor:pointer" onclick="openDiscModal()">${badge1}${badge2}</div>`;
+    discEl.innerHTML = `<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;cursor:pointer">${badge1}${badge2}</div>`;
   }
   const beltEl = document.getElementById('belt-display');
   const hasBJJ = disc === 'BJJ' || disc2 === 'BJJ';
@@ -1570,10 +1570,12 @@ function renderSociosList(socios) {
         <div class="person-sub">${s.visitas_mes} visitas este mes · ${s.visitas_total} total</div>
       </div>
       <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end">
-        <button onclick="editarHoras('${s.id}','${s.nombre}',${s.horas_mes||0})" style="border:1px solid #2a2a2a;border-radius:6px;padding:3px 8px;font-size:10px;cursor:pointer;background:none;color:#888;font-family:inherit">${s.horas_mes===0?"♾️":"⏱️"+s.horas_mes+"h"}</button>
+        <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end">
+        <button onclick="editarHoras('${s.id}','${s.nombre}',${s.horas_mes||0})" style="border:1px solid #2a2a2a;border-radius:6px;padding:3px 8px;font-size:10px;cursor:pointer;background:none;color:#e63946;font-family:inherit">⏱ ${s.horas_mes||0}h/mes</button>
+        <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end">
         <button onclick="window._editId='${s.id}';editarSocioPerfil()" style="border:1px solid #2a2a2a;border-radius:6px;padding:3px 8px;font-size:10px;cursor:pointer;background:none;color:#888;font-family:inherit">✏️</button>
-        ${s.rol!=="admin"?`<button onclick="hacerAdmin('${s.id}')" style="border:1px solid #2a2a2a;border-radius:6px;padding:3px 8px;font-size:10px;cursor:pointer;background:none;color:#888;font-family:inherit">Admin</button>`:"<span style='font-size:10px;color:#e63946;font-weight:700'>Admin</span>"}
-        ${s.rol!=="admin"?`<button onclick="borrarSocio('${s.id}','${s.nombre}')" style="border:1px solid #e6394644;border-radius:6px;padding:3px 8px;font-size:10px;cursor:pointer;background:none;color:#e63946;font-family:inherit">🗑</button>`:""}
+        ${s.rol!=='admin'?`<button onclick="hacerAdmin('${s.id}')" style="border:1px solid #2a2a2a;border-radius:6px;padding:3px 8px;font-size:10px;cursor:pointer;background:none;color:#888;font-family:inherit">Admin</button>`:'<span style="font-size:10px;color:#e63946;font-weight:700">Admin</span>'}
+        ${s.rol!=='admin'?`<button onclick="borrarSocio('${s.id}','${s.nombre}')" style="border:1px solid #e6394644;border-radius:6px;padding:3px 8px;font-size:10px;cursor:pointer;background:none;color:#e63946;font-family:inherit">🗑 Borrar</button>`:''}
       </div>
       </div>
     </div></div>`;
