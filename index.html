@@ -1247,7 +1247,7 @@ async function loadAdmin() {
   const hoy = new Date().toISOString().split('T')[0];
   const mes = new Date().toISOString().slice(0,7);
   const {data:hoyData} = await db.from('checkins').select('id').eq('fecha',hoy);
-  const {data:socios} = await db.from('profiles').select('*');
+  const {data:socios} = await db.from('profiles').select('*').order('nombre');
   const {data:clases} = await db.from('clases').select('*').order('hora');
   const {data:checkinsMes} = await db.from('checkins').select('usuario_id').gte('fecha',mes+'-01');
   const {data:checkinsTotal} = await db.from('checkins').select('usuario_id');
@@ -1631,7 +1631,7 @@ function renderSociosList(socios) {
     const disc = s.disciplina ? `<span style="font-size:10px;background:${(DISCIPLINAS[s.disciplina]||DISCIPLINAS.MMA).color}22;color:${(DISCIPLINAS[s.disciplina]||DISCIPLINAS.MMA).color};padding:1px 6px;border-radius:10px;margin-left:4px">${s.disciplina}</span>` : '';
     const disc2 = s.disciplina2 ? `<span style="font-size:10px;background:${(DISCIPLINAS[s.disciplina2]||DISCIPLINAS.MMA).color}22;color:${(DISCIPLINAS[s.disciplina2]||DISCIPLINAS.MMA).color};padding:1px 6px;border-radius:10px;margin-left:2px">${s.disciplina2}</span>` : '';
     return `<div class="card"><div class="card-row">
-      <div class="avatar" style="overflow:hidden">${s.avatar_url?`<img src="${s.avatar_url}" style="width:100%;height:100%;object-fit:cover">`:ini}</div>
+      <div class="avatar" style="overflow:hidden" onclick="if(allSocios.find(x=>x.id==='${s.id}')?.avatar_url)abrirFoto('${s.avatar_url}','${s.nombre}','${s.disciplina||'MMA'}')">${s.avatar_url?`<img src="${s.avatar_url}?t=${Date.now()}" style="width:100%;height:100%;object-fit:cover">`:ini}</div>
       <div style="flex:1;min-width:0">
         <div class="person-name" style="display:flex;align-items:center;flex-wrap:wrap;gap:2px">${s.nombre}${disc}${disc2}</div>
         <div class="person-sub">${s.visitas_mes} visitas este mes · ${s.visitas_total} total</div>
