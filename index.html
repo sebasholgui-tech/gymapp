@@ -1187,7 +1187,7 @@ async function loadRanking() {
   const top3 = sorted.slice(0, Math.min(3, sorted.length));
   if (top3.length > 0) {
     const podOrder = top3.length===1?[0]:top3.length===2?[1,0]:[1,0,2];
-    const podH = ['75px','55px','42px'];
+    const podH = ['55px','40px','30px'];
     const podMedal = ['🏆🔥','🥈🔥','🥉🔥'];
     const podBorder = ['#FFD700','#C0C0C0','#CD7F32'];
     podHTML = `<div style="display:flex;align-items:flex-end;justify-content:center;gap:6px;margin-bottom:1.5rem;padding:0 4px">
@@ -1202,13 +1202,13 @@ async function loadRanking() {
         const d2b=DISCIPLINAS[disc2b]||DISCIPLINAS.MMA;
         const pos=i+1;
         return `<div style="flex:1;max-width:110px;display:flex;flex-direction:column;align-items:center;gap:3px">
-          <span style="font-size:${pos===1?'24px':'17px'}">${podMedal[i]}</span>
-          <div style="width:${pos===1?'52px':'38px'};height:${pos===1?'52px':'38px'};border-radius:50%;border:2px solid ${podBorder[i]};background:${d2b.color}22;display:flex;align-items:center;justify-content:center;font-size:${pos===1?'16px':'11px'};font-weight:700;color:${d2b.color};overflow:hidden">
+          <span style="font-size:${pos===1?'18px':'14px'}">${podMedal[i]}</span>
+          <div style="width:${pos===1?'42px':'32px'};height:${pos===1?'42px':'32px'};border-radius:50%;border:2px solid ${podBorder[i]};background:${d2b.color}22;display:flex;align-items:center;justify-content:center;font-size:${pos===1?'13px':'10px'};font-weight:700;color:${d2b.color};overflow:hidden">
             ${prof2?.avatar_url?`<img src="${prof2.avatar_url}" style="width:100%;height:100%;object-fit:cover">`:ini2}
           </div>
-          <div style="font-size:${pos===1?'12px':'10px'};font-weight:700;color:${isMe2?'#e63946':'#fff'};text-align:center;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${nom2}${isMe2?' (Tú)':''}</div>
+          <div style="font-size:${pos===1?'11px':'9px'};font-weight:700;color:${isMe2?'#e63946':'#fff'};text-align:center;max-width:70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${nom2}${isMe2?' (Tú)':''}</div>
           ${(prof2?.disciplina==='BJJ'||prof2?.disciplina2==='BJJ')&&prof2?.cinturon_bjj?`<div style="margin-top:2px">${beltHTML(prof2.cinturon_bjj,prof2.galones_bjj||0,'sm')}</div>`:''}
-          <div style="font-size:10px;color:${podBorder[i]};font-weight:700">${clases2}cls</div>
+          <div style="font-size:9px;color:${podBorder[i]};font-weight:700">${clases2}cls</div>
           <div style="background:${podBorder[i]};border-radius:6px 6px 0 0;width:100%;height:${podH[i]};display:flex;align-items:center;justify-content:center;font-size:${pos===1?'18px':'13px'};font-weight:800;color:#111">${pos}</div>
         </div>`;
       }).join('')}
