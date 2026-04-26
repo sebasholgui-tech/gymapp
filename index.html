@@ -408,7 +408,10 @@ body.light .auth-tab.active{background:#f0f0f0!important;color:#1a1a1a!important
         <span id="arr-admin-socios" style="color:#555;font-size:18px">›</span>
       </div>
       <div id="sec-admin-socios" style="display:none;margin-bottom:10px">
-        <input class="form-input" id="admin-search" placeholder="Buscar por nombre..." oninput="filterSocios()" style="margin-bottom:12px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <input class="form-input" id="admin-search" placeholder="Buscar por nombre..." oninput="filterSocios()" style="margin-bottom:0;flex:1">
+          <button onclick="loadAdmin()" style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:8px;padding:8px 10px;cursor:pointer;font-size:14px">🔄</button>
+        </div>
         <div id="admin-socios-list"></div>
       </div>
     </div>
