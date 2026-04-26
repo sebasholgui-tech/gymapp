@@ -495,7 +495,7 @@ const rateLimiter = {
 
 // Secure invitation system using Supabase instead of localStorage
 async function generateSecureInvite() {
-  const token = crypto.randomUUID();
+  const token = Math.random().toString(36).substring(2,10) + Math.random().toString(36).substring(2,10);
   const expires = new Date(Date.now() + 7*24*60*60*1000).toISOString(); // 7 days
   await db.from('invitaciones').insert({token, expires_at: expires, usado: false});
   return token;
