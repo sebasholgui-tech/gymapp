@@ -567,7 +567,6 @@ async function doLogin() {
   const pass = document.getElementById('login-pass').value;
   if (!email||!pass) return showError('Rellena todos los campos');
   if (!validateEmail(email)) return showError('Email no válido');
-  if (!validatePassword(pass)) return showError('Contraseña incorrecta');
   if (!rateLimiter.check('login_'+email, 5, 60000))
     return showError('Demasiados intentos. Espera 1 minuto.');
   const {error} = await db.auth.signInWithPassword({email, password:pass});
