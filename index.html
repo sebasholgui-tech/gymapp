@@ -457,6 +457,295 @@ const SUPABASE_KEY = 'sb_publishable_SNsgBqoF6ZoN8JGMxtTOQw_rXV_sqYj';
 const { createClient } = supabase;
 const db = createClient(SUPABASE_URL, SUPABASE_KEY);
 
+// ============================================================
+// SEGURIDAD - Validación de inputs y sanitización
+// ============================================================
+function sanitize(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;')
+    .replace(/'/g,'&#x27;')
+    .trim()
+    .substring(0, 200); // Max length
+}
+
+function validateEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function validatePassword(pass) {
+  return pass && pass.length >= 6 && pass.length <= 100;
+}
+
+// Rate limiting - max 5 attempts per 60 seconds
+const rateLimiter = {
+  attempts: {},
+  check(key, max=5, windowMs=60000) {
+    const now = Date.now();
+    if (!this.attempts[key]) this.attempts[key] = [];
+    this.attempts[key] = this.attempts[key].filter(t => now - t < windowMs);
+    if (this.attempts[key].length >= max) return false;
+    this.attempts[key].push(now);
+    return true;
+  }
+};
+
+// Secure invitation system using Supabase instead of localStorage
+async function generateSecureInvite() {
+  const token = crypto.randomUUID();
+  const expires = new Date(Date.now() + 7*24*60*60*1000).toISOString(); // 7 days
+  await db.from('invitaciones').insert({token, expires_at: expires, usado: false});
+  return token;
+}
+
+async function validateInviteToken(token) {
+  if (!token) return false;
+  const {data} = await db.from('invitaciones')
+    .select('*').eq('token', token).eq('usado', false)
+    .gt('expires_at', new Date().toISOString()).single();
+  return !!data;
+}
+
+async function markInviteUsed(token) {
+  await db.from('invitaciones').update({usado: true}).eq('token', token);
+}
+
+
+let adminEditDisc = 'MMA';
+let adminEditDisc2 = '';
+let adminEditBelt = 'blanco';
+let adminEditGalones = 0;
+
+function editarSocioPerfil(uid, nombre, disc, disc2, belt, galones) {
+  adminEditDisc = disc || 'MMA';
+  adminEditDisc2 = disc2 || '';
+  adminEditBelt = belt || 'blanco';
+  adminEditGalones = galones || 0;
+  document.getElementById('admin-edit-uid').value = uid;
+  document.getElementById('admin-edit-nombre').textContent = nombre;
+  renderAdminDiscOpts();
+  renderAdminBeltOpts();
+  document.getElementById('modal-admin-socio-bg').style.display = 'flex';
+}
+
+function renderAdminDiscOpts() {
+  const hasBJJ = adminEditDisc==='BJJ'||adminEditDisc2==='BJJ';
+  document.getElementById('admin-belt-section').style.display = hasBJJ?'block':'none';
+
+  const el1 = document.getElementById('admin-disc-opts');
+  const el2 = document.getElementById('admin-disc2-opts');
+  el1.innerHTML = Object.entries(DISCIPLINAS).map(([key,d])=>`
+    <div onclick="adminEditDisc='${key}';renderAdminDiscOpts()" style="cursor:pointer;border:1.5px solid ${adminEditDisc===key?d.color:'#2a2a2a'};border-radius:8px;padding:6px;text-align:center;background:${adminEditDisc===key?d.color+'22':'#111'}">
+      <div style="font-size:10px;font-weight:700;color:${adminEditDisc===key?d.color:'#666'}">${d.label}</div>
+    </div>`).join('');
+  el2.innerHTML = '<div onclick="adminEditDisc2='';renderAdminDiscOpts()" style="cursor:pointer;border:1.5px solid '+(adminEditDisc2===''?'#e63946':'#2a2a2a')+';border-radius:8px;padding:6px;text-align:center;background:'+(adminEditDisc2===''?'#e6394622':'#111')+'">' +
+    '<div style="font-size:10px;font-weight:700;color:'+(adminEditDisc2===''?'#e63946':'#666')+'">Ninguna</div></div>' +
+    Object.entries(DISCIPLINAS).map(([key,d])=>`
+    <div onclick="adminEditDisc2='${key}';renderAdminDiscOpts()" style="cursor:pointer;border:1.5px solid ${adminEditDisc2===key?d.color:'#2a2a2a'};border-radius:8px;padding:6px;text-align:center;background:${adminEditDisc2===key?d.color+'22':'#111'}">
+      <div style="font-size:10px;font-weight:700;color:${adminEditDisc2===key?d.color:'#666'}">${d.label}</div>
+    </div>`).join('');
+}
+
+function renderAdminBeltOpts() {
+  const beltEl = document.getElementById('admin-belt-opts');
+  beltEl.innerHTML = Object.entries(CINTURONES).map(([key,b])=>`
+    <div onclick="adminEditBelt='${key}';renderAdminBeltOpts()" style="cursor:pointer;padding:3px;border-radius:4px;border:2px solid ${adminEditBelt===key?'#fff':'transparent'}">
+      ${beltHTML(key,0,'sm')}
+    </div>`).join('');
+  const galonEl = document.getElementById('admin-galon-opts');
+  galonEl.innerHTML = [0,1,2,3,4].map(g=>`
+    <div onclick="adminEditGalones=${g};renderAdminBeltOpts()" style="cursor:pointer;width:28px;height:28px;border-radius:50%;border:1.5px solid ${adminEditGalones===g?'#e63946':'#2a2a2a'};background:${adminEditGalones===g?'#2a0a0a':'#111'};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:${adminEditGalones===g?'#e63946':'#888'}">${g}</div>`).join('');
+}
+
+async function guardarPerfilSocio() {
+  const uid = document.getElementById('admin-edit-uid').value;
+  const updates = {
+    disciplina: adminEditDisc,
+    disciplina2: adminEditDisc2||null,
+  };
+  if (adminEditDisc==='BJJ'||adminEditDisc2==='BJJ') {
+    updates.cinturon_bjj = adminEditBelt;
+    updates.galones_bjj = adminEditGalones;
+  }
+  const {error} = await db.from('profiles').update(updates).eq('id', uid);
+  if (error) { toast('Error al guardar'); return; }
+  toast('Perfil actualizado');
+  document.getElementById('modal-admin-socio-bg').style.display = 'none';
+  loadAdmin();
+}
+
+db.auth.onAuthStateChange((event, session) => {
+  if (event === 'PASSWORD_RECOVERY') {
+    document.getElementById('auth-screen').classList.add('hidden');
+    document.getElementById('app-screen').classList.add('hidden');
+    document.getElementById('reset-screen').classList.remove('hidden');
+  } else if (event === 'SIGNED_IN') {
+    const hash = window.location.hash;
+    if (hash && hash.includes('type=recovery')) {
+      document.getElementById('auth-screen').classList.add('hidden');
+      document.getElementById('app-screen').classList.add('hidden');
+      document.getElementById('reset-screen').classList.remove('hidden');
+    } else {
+      document.getElementById('reset-screen').classList.add('hidden');
+      initApp(session.user);
+    }
+  } else if (!session) {
+    document.getElementById('auth-screen').classList.remove('hidden');
+    document.getElementById('app-screen').classList.add('hidden');
+    document.getElementById('reset-screen').classList.add('hidden');
+  }
+});
+</script>
+
+
+<!-- DISCIPLINE MODAL -->
+<div id="modal-disc-bg" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:200;align-items:center;justify-content:center">
+  <div style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:16px;padding:24px;width:310px">
+    <div style="font-size:16px;font-weight:700;color:#fff;margin-bottom:4px">Mis disciplinas</div>
+    <div style="font-size:12px;color:#555;margin-bottom:12px">Elige hasta 2 (no pueden ser iguales)</div>
+    <div id="disc-options" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px"></div>
+    <div id="belt-in-disc-modal" style="display:none;border-top:1px solid #2a2a2a;padding-top:14px;margin-bottom:14px">
+      <div style="font-size:12px;color:#888;margin-bottom:8px">Cinturón BJJ</div>
+      <div class="belt-selector" id="belt-selector"></div>
+      <div style="font-size:12px;color:#888;margin-bottom:8px">Galones</div>
+      <div class="galon-selector" id="galon-selector"></div>
+      <div id="belt-preview" style="margin-bottom:8px"></div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn-cancel" onclick="closeDiscModal()">Cancelar</button>
+      <button class="btn-save" onclick="saveDisc()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- belt modal removed - now inside disc modal -->
+
+<!-- MODAL APUNTADOS -->
+<div id="modal-apuntados-bg" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:200;align-items:flex-end;justify-content:center">
+  <div style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:16px 16px 0 0;padding:20px;width:100%;max-width:600px;max-height:70vh;overflow-y:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div id="modal-apuntados-title" style="font-size:16px;font-weight:700;color:#fff"></div>
+      <button onclick="document.getElementById('modal-apuntados-bg').style.display='none'" style="background:none;border:none;color:#888;font-size:20px;cursor:pointer">✕</button>
+    </div>
+    <div id="modal-apuntados-list"></div>
+  </div>
+</div>
+
+<!-- MODAL FOTO -->
+<div id="modal-foto-bg" onclick="this.style.display='none'" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.9);z-index:300;align-items:center;justify-content:center;cursor:pointer">
+  <div style="text-align:center">
+    <img id="modal-foto-img" style="width:220px;height:220px;border-radius:50%;object-fit:cover;border:3px solid #e63946">
+    <div id="modal-foto-nombre" style="color:#fff;font-size:16px;font-weight:700;margin-top:14px"></div>
+    <div id="modal-foto-disc" style="color:#888;font-size:13px;margin-top:4px"></div>
+    <div style="color:#555;font-size:11px;margin-top:16px">Pulsa para cerrar</div>
+  </div>
+</div>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').then(reg => {
+      reg.update();
+    }).catch(()=>{});
+  });
+}
+</script>
+
+<!-- STRIPE DEMO MODAL -->
+<div id="modal-stripe-bg" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.9);z-index:300;align-items:center;justify-content:center;padding:1rem">
+  <div style="background:#fff;border-radius:16px;padding:24px;width:100%;max-width:360px;font-family:-apple-system,sans-serif">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+      <div style="font-size:16px;font-weight:700;color:#1a1a1a">Pago seguro</div>
+      <button onclick="document.getElementById('modal-stripe-bg').style.display='none'" style="background:none;border:none;cursor:pointer;font-size:20px;color:#888">✕</button>
+    </div>
+    <div style="background:#f5f5f5;border-radius:10px;padding:14px;margin-bottom:16px">
+      <div style="font-size:12px;color:#888;margin-bottom:4px">Resumen</div>
+      <div id="stripe-plan-label" style="font-size:15px;font-weight:700;color:#1a1a1a"></div>
+      <div id="stripe-precio-label" style="font-size:22px;font-weight:800;color:#635BFF;margin-top:4px"></div>
+      <div style="font-size:11px;color:#888;margin-top:2px">Renovación mensual automática</div>
+    </div>
+    <div style="margin-bottom:12px">
+      <label style="font-size:12px;color:#888;display:block;margin-bottom:4px">Titular de la tarjeta</label>
+      <input type="text" placeholder="Nombre Apellido" style="width:100%;border:1px solid #ddd;border-radius:8px;padding:10px 12px;font-size:14px;color:#1a1a1a;box-sizing:border-box">
+    </div>
+    <div style="margin-bottom:12px">
+      <label style="font-size:12px;color:#888;display:block;margin-bottom:4px">Número de tarjeta</label>
+      <div style="border:1px solid #ddd;border-radius:8px;padding:10px 12px;display:flex;align-items:center;gap:8px">
+        <input type="text" placeholder="4242 4242 4242 4242" maxlength="19" id="stripe-card" oninput="formatCard(this)" style="flex:1;border:none;outline:none;font-size:14px;color:#1a1a1a">
+        <span style="font-size:18px">💳</span>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+      <div>
+        <label style="font-size:12px;color:#888;display:block;margin-bottom:4px">Caducidad</label>
+        <input type="text" placeholder="MM/AA" maxlength="5" style="width:100%;border:1px solid #ddd;border-radius:8px;padding:10px 12px;font-size:14px;color:#1a1a1a;box-sizing:border-box">
+      </div>
+      <div>
+        <label style="font-size:12px;color:#888;display:block;margin-bottom:4px">CVC</label>
+        <input type="text" placeholder="123" maxlength="3" style="width:100%;border:1px solid #ddd;border-radius:8px;padding:10px 12px;font-size:14px;color:#1a1a1a;box-sizing:border-box">
+      </div>
+    </div>
+    <button onclick="procesarPagoDemo()" style="width:100%;background:#635BFF;border:none;border-radius:10px;padding:14px;font-size:15px;font-weight:700;color:#fff;cursor:pointer;font-family:inherit" id="stripe-pay-btn">
+      Pagar <span id="stripe-pay-amount"></span>
+    </button>
+    <div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-top:12px">
+      <span style="font-size:12px;color:#aaa">Protegido por</span>
+      <span style="font-size:13px;font-weight:700;color:#635BFF">stripe</span>
+      <span style="font-size:14px">🔒</span>
+    </div>
+  </div>
+</div>
+
+<!-- STRIPE SUCCESS -->
+<div id="modal-stripe-ok" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.9);z-index:301;align-items:center;justify-content:center;padding:1rem">
+  <div style="background:#fff;border-radius:16px;padding:32px;width:100%;max-width:320px;text-align:center;font-family:-apple-system,sans-serif">
+    <div style="font-size:56px;margin-bottom:12px">✅</div>
+    <div style="font-size:18px;font-weight:700;color:#1a1a1a;margin-bottom:8px">Pago completado</div>
+    <div style="font-size:13px;color:#888;margin-bottom:20px">Tu suscripción está activa. Recibirás un recibo en tu email.</div>
+    <button onclick="document.getElementById('modal-stripe-ok').style.display='none';document.getElementById('modal-stripe-bg').style.display='none'" style="width:100%;background:#635BFF;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:700;color:#fff;cursor:pointer;font-family:inherit">Volver a la app</button>
+    <div style="font-size:10px;color:#bbb;margin-top:10px">⚠️ Esto es una demo — no se ha cobrado nada</div>
+  </div>
+</div>
+
+<!-- NOTIFICACIONES -->
+<div id="modal-notif-bg" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:200;align-items:flex-start;justify-content:center;padding-top:70px">
+  <div style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:16px;width:100%;max-width:500px;max-height:70vh;overflow-y:auto;margin:0 1rem">
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:16px;border-bottom:1px solid #2a2a2a;position:sticky;top:0;background:#1a1a1a">
+      <div style="font-size:15px;font-weight:700;color:#fff">Notificaciones</div>
+      <button onclick="document.getElementById('modal-notif-bg').style.display='none'" style="background:none;border:none;color:#888;font-size:20px;cursor:pointer">✕</button>
+    </div>
+    <div id="notif-list" style="padding:8px"></div>
+  </div>
+</div>
+
+<!-- ADMIN EDIT SOCIO -->
+<div id="modal-admin-socio-bg" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:200;align-items:center;justify-content:center;padding:1rem">
+  <div style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:16px;padding:20px;width:100%;max-width:340px;max-height:85vh;overflow-y:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div style="font-size:15px;font-weight:700;color:#fff" id="admin-edit-nombre"></div>
+      <button onclick="document.getElementById('modal-admin-socio-bg').style.display='none'" style="background:none;border:none;color:#888;font-size:20px;cursor:pointer">✕</button>
+    </div>
+    <input type="hidden" id="admin-edit-uid">
+    <div style="font-size:12px;color:#555;margin-bottom:8px">Disciplina principal</div>
+    <div id="admin-disc-opts" style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:14px"></div>
+    <div style="font-size:12px;color:#555;margin-bottom:8px">Disciplina secundaria</div>
+    <div id="admin-disc2-opts" style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:14px"></div>
+    <div id="admin-belt-section" style="display:none">
+      <div style="font-size:12px;color:#555;margin-bottom:8px">Cinturón BJJ</div>
+      <div id="admin-belt-opts" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px"></div>
+      <div style="font-size:12px;color:#555;margin-bottom:6px">Galones</div>
+      <div style="display:flex;gap:6px;margin-bottom:14px" id="admin-galon-opts"></div>
+    </div>
+    <button onclick="guardarPerfilSocio()" class="btn-main">Guardar cambios</button>
+  </div>
+</div>
+</body>
+</html>
+
+
 const CLASE_COLORS = ['#7F77DD','#1D9E75','#D85A30','#378ADD','#D4537E','#BA7517'];
 let selColor = CLASE_COLORS[0];
 let currentUser = null;
@@ -2000,290 +2289,3 @@ async function marcarLeida(id) {
 }
 
 
-// ============================================================
-// SEGURIDAD - Validación de inputs y sanitización
-// ============================================================
-function sanitize(str) {
-  if (!str) return '';
-  return String(str)
-    .replace(/&/g,'&amp;')
-    .replace(/</g,'&lt;')
-    .replace(/>/g,'&gt;')
-    .replace(/"/g,'&quot;')
-    .replace(/'/g,'&#x27;')
-    .trim()
-    .substring(0, 200); // Max length
-}
-
-function validateEmail(email) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-}
-
-function validatePassword(pass) {
-  return pass && pass.length >= 6 && pass.length <= 100;
-}
-
-// Rate limiting - max 5 attempts per 60 seconds
-const rateLimiter = {
-  attempts: {},
-  check(key, max=5, windowMs=60000) {
-    const now = Date.now();
-    if (!this.attempts[key]) this.attempts[key] = [];
-    this.attempts[key] = this.attempts[key].filter(t => now - t < windowMs);
-    if (this.attempts[key].length >= max) return false;
-    this.attempts[key].push(now);
-    return true;
-  }
-};
-
-// Secure invitation system using Supabase instead of localStorage
-async function generateSecureInvite() {
-  const token = crypto.randomUUID();
-  const expires = new Date(Date.now() + 7*24*60*60*1000).toISOString(); // 7 days
-  await db.from('invitaciones').insert({token, expires_at: expires, usado: false});
-  return token;
-}
-
-async function validateInviteToken(token) {
-  if (!token) return false;
-  const {data} = await db.from('invitaciones')
-    .select('*').eq('token', token).eq('usado', false)
-    .gt('expires_at', new Date().toISOString()).single();
-  return !!data;
-}
-
-async function markInviteUsed(token) {
-  await db.from('invitaciones').update({usado: true}).eq('token', token);
-}
-
-
-let adminEditDisc = 'MMA';
-let adminEditDisc2 = '';
-let adminEditBelt = 'blanco';
-let adminEditGalones = 0;
-
-function editarSocioPerfil(uid, nombre, disc, disc2, belt, galones) {
-  adminEditDisc = disc || 'MMA';
-  adminEditDisc2 = disc2 || '';
-  adminEditBelt = belt || 'blanco';
-  adminEditGalones = galones || 0;
-  document.getElementById('admin-edit-uid').value = uid;
-  document.getElementById('admin-edit-nombre').textContent = nombre;
-  renderAdminDiscOpts();
-  renderAdminBeltOpts();
-  document.getElementById('modal-admin-socio-bg').style.display = 'flex';
-}
-
-function renderAdminDiscOpts() {
-  const hasBJJ = adminEditDisc==='BJJ'||adminEditDisc2==='BJJ';
-  document.getElementById('admin-belt-section').style.display = hasBJJ?'block':'none';
-
-  const el1 = document.getElementById('admin-disc-opts');
-  const el2 = document.getElementById('admin-disc2-opts');
-  el1.innerHTML = Object.entries(DISCIPLINAS).map(([key,d])=>`
-    <div onclick="adminEditDisc='${key}';renderAdminDiscOpts()" style="cursor:pointer;border:1.5px solid ${adminEditDisc===key?d.color:'#2a2a2a'};border-radius:8px;padding:6px;text-align:center;background:${adminEditDisc===key?d.color+'22':'#111'}">
-      <div style="font-size:10px;font-weight:700;color:${adminEditDisc===key?d.color:'#666'}">${d.label}</div>
-    </div>`).join('');
-  el2.innerHTML = '<div onclick="adminEditDisc2='';renderAdminDiscOpts()" style="cursor:pointer;border:1.5px solid '+(adminEditDisc2===''?'#e63946':'#2a2a2a')+';border-radius:8px;padding:6px;text-align:center;background:'+(adminEditDisc2===''?'#e6394622':'#111')+'">' +
-    '<div style="font-size:10px;font-weight:700;color:'+(adminEditDisc2===''?'#e63946':'#666')+'">Ninguna</div></div>' +
-    Object.entries(DISCIPLINAS).map(([key,d])=>`
-    <div onclick="adminEditDisc2='${key}';renderAdminDiscOpts()" style="cursor:pointer;border:1.5px solid ${adminEditDisc2===key?d.color:'#2a2a2a'};border-radius:8px;padding:6px;text-align:center;background:${adminEditDisc2===key?d.color+'22':'#111'}">
-      <div style="font-size:10px;font-weight:700;color:${adminEditDisc2===key?d.color:'#666'}">${d.label}</div>
-    </div>`).join('');
-}
-
-function renderAdminBeltOpts() {
-  const beltEl = document.getElementById('admin-belt-opts');
-  beltEl.innerHTML = Object.entries(CINTURONES).map(([key,b])=>`
-    <div onclick="adminEditBelt='${key}';renderAdminBeltOpts()" style="cursor:pointer;padding:3px;border-radius:4px;border:2px solid ${adminEditBelt===key?'#fff':'transparent'}">
-      ${beltHTML(key,0,'sm')}
-    </div>`).join('');
-  const galonEl = document.getElementById('admin-galon-opts');
-  galonEl.innerHTML = [0,1,2,3,4].map(g=>`
-    <div onclick="adminEditGalones=${g};renderAdminBeltOpts()" style="cursor:pointer;width:28px;height:28px;border-radius:50%;border:1.5px solid ${adminEditGalones===g?'#e63946':'#2a2a2a'};background:${adminEditGalones===g?'#2a0a0a':'#111'};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:${adminEditGalones===g?'#e63946':'#888'}">${g}</div>`).join('');
-}
-
-async function guardarPerfilSocio() {
-  const uid = document.getElementById('admin-edit-uid').value;
-  const updates = {
-    disciplina: adminEditDisc,
-    disciplina2: adminEditDisc2||null,
-  };
-  if (adminEditDisc==='BJJ'||adminEditDisc2==='BJJ') {
-    updates.cinturon_bjj = adminEditBelt;
-    updates.galones_bjj = adminEditGalones;
-  }
-  const {error} = await db.from('profiles').update(updates).eq('id', uid);
-  if (error) { toast('Error al guardar'); return; }
-  toast('Perfil actualizado');
-  document.getElementById('modal-admin-socio-bg').style.display = 'none';
-  loadAdmin();
-}
-
-db.auth.onAuthStateChange((event, session) => {
-  if (event === 'PASSWORD_RECOVERY') {
-    document.getElementById('auth-screen').classList.add('hidden');
-    document.getElementById('app-screen').classList.add('hidden');
-    document.getElementById('reset-screen').classList.remove('hidden');
-  } else if (event === 'SIGNED_IN') {
-    const hash = window.location.hash;
-    if (hash && hash.includes('type=recovery')) {
-      document.getElementById('auth-screen').classList.add('hidden');
-      document.getElementById('app-screen').classList.add('hidden');
-      document.getElementById('reset-screen').classList.remove('hidden');
-    } else {
-      document.getElementById('reset-screen').classList.add('hidden');
-      initApp(session.user);
-    }
-  } else if (!session) {
-    document.getElementById('auth-screen').classList.remove('hidden');
-    document.getElementById('app-screen').classList.add('hidden');
-    document.getElementById('reset-screen').classList.add('hidden');
-  }
-});
-</script>
-
-
-<!-- DISCIPLINE MODAL -->
-<div id="modal-disc-bg" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:200;align-items:center;justify-content:center">
-  <div style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:16px;padding:24px;width:310px">
-    <div style="font-size:16px;font-weight:700;color:#fff;margin-bottom:4px">Mis disciplinas</div>
-    <div style="font-size:12px;color:#555;margin-bottom:12px">Elige hasta 2 (no pueden ser iguales)</div>
-    <div id="disc-options" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px"></div>
-    <div id="belt-in-disc-modal" style="display:none;border-top:1px solid #2a2a2a;padding-top:14px;margin-bottom:14px">
-      <div style="font-size:12px;color:#888;margin-bottom:8px">Cinturón BJJ</div>
-      <div class="belt-selector" id="belt-selector"></div>
-      <div style="font-size:12px;color:#888;margin-bottom:8px">Galones</div>
-      <div class="galon-selector" id="galon-selector"></div>
-      <div id="belt-preview" style="margin-bottom:8px"></div>
-    </div>
-    <div style="display:flex;gap:8px;justify-content:flex-end">
-      <button class="btn-cancel" onclick="closeDiscModal()">Cancelar</button>
-      <button class="btn-save" onclick="saveDisc()">Guardar</button>
-    </div>
-  </div>
-</div>
-
-<!-- belt modal removed - now inside disc modal -->
-
-<!-- MODAL APUNTADOS -->
-<div id="modal-apuntados-bg" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:200;align-items:flex-end;justify-content:center">
-  <div style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:16px 16px 0 0;padding:20px;width:100%;max-width:600px;max-height:70vh;overflow-y:auto">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-      <div id="modal-apuntados-title" style="font-size:16px;font-weight:700;color:#fff"></div>
-      <button onclick="document.getElementById('modal-apuntados-bg').style.display='none'" style="background:none;border:none;color:#888;font-size:20px;cursor:pointer">✕</button>
-    </div>
-    <div id="modal-apuntados-list"></div>
-  </div>
-</div>
-
-<!-- MODAL FOTO -->
-<div id="modal-foto-bg" onclick="this.style.display='none'" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.9);z-index:300;align-items:center;justify-content:center;cursor:pointer">
-  <div style="text-align:center">
-    <img id="modal-foto-img" style="width:220px;height:220px;border-radius:50%;object-fit:cover;border:3px solid #e63946">
-    <div id="modal-foto-nombre" style="color:#fff;font-size:16px;font-weight:700;margin-top:14px"></div>
-    <div id="modal-foto-disc" style="color:#888;font-size:13px;margin-top:4px"></div>
-    <div style="color:#555;font-size:11px;margin-top:16px">Pulsa para cerrar</div>
-  </div>
-</div>
-
-<script>
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').then(reg => {
-      reg.update();
-    }).catch(()=>{});
-  });
-}
-</script>
-
-<!-- STRIPE DEMO MODAL -->
-<div id="modal-stripe-bg" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.9);z-index:300;align-items:center;justify-content:center;padding:1rem">
-  <div style="background:#fff;border-radius:16px;padding:24px;width:100%;max-width:360px;font-family:-apple-system,sans-serif">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
-      <div style="font-size:16px;font-weight:700;color:#1a1a1a">Pago seguro</div>
-      <button onclick="document.getElementById('modal-stripe-bg').style.display='none'" style="background:none;border:none;cursor:pointer;font-size:20px;color:#888">✕</button>
-    </div>
-    <div style="background:#f5f5f5;border-radius:10px;padding:14px;margin-bottom:16px">
-      <div style="font-size:12px;color:#888;margin-bottom:4px">Resumen</div>
-      <div id="stripe-plan-label" style="font-size:15px;font-weight:700;color:#1a1a1a"></div>
-      <div id="stripe-precio-label" style="font-size:22px;font-weight:800;color:#635BFF;margin-top:4px"></div>
-      <div style="font-size:11px;color:#888;margin-top:2px">Renovación mensual automática</div>
-    </div>
-    <div style="margin-bottom:12px">
-      <label style="font-size:12px;color:#888;display:block;margin-bottom:4px">Titular de la tarjeta</label>
-      <input type="text" placeholder="Nombre Apellido" style="width:100%;border:1px solid #ddd;border-radius:8px;padding:10px 12px;font-size:14px;color:#1a1a1a;box-sizing:border-box">
-    </div>
-    <div style="margin-bottom:12px">
-      <label style="font-size:12px;color:#888;display:block;margin-bottom:4px">Número de tarjeta</label>
-      <div style="border:1px solid #ddd;border-radius:8px;padding:10px 12px;display:flex;align-items:center;gap:8px">
-        <input type="text" placeholder="4242 4242 4242 4242" maxlength="19" id="stripe-card" oninput="formatCard(this)" style="flex:1;border:none;outline:none;font-size:14px;color:#1a1a1a">
-        <span style="font-size:18px">💳</span>
-      </div>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
-      <div>
-        <label style="font-size:12px;color:#888;display:block;margin-bottom:4px">Caducidad</label>
-        <input type="text" placeholder="MM/AA" maxlength="5" style="width:100%;border:1px solid #ddd;border-radius:8px;padding:10px 12px;font-size:14px;color:#1a1a1a;box-sizing:border-box">
-      </div>
-      <div>
-        <label style="font-size:12px;color:#888;display:block;margin-bottom:4px">CVC</label>
-        <input type="text" placeholder="123" maxlength="3" style="width:100%;border:1px solid #ddd;border-radius:8px;padding:10px 12px;font-size:14px;color:#1a1a1a;box-sizing:border-box">
-      </div>
-    </div>
-    <button onclick="procesarPagoDemo()" style="width:100%;background:#635BFF;border:none;border-radius:10px;padding:14px;font-size:15px;font-weight:700;color:#fff;cursor:pointer;font-family:inherit" id="stripe-pay-btn">
-      Pagar <span id="stripe-pay-amount"></span>
-    </button>
-    <div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-top:12px">
-      <span style="font-size:12px;color:#aaa">Protegido por</span>
-      <span style="font-size:13px;font-weight:700;color:#635BFF">stripe</span>
-      <span style="font-size:14px">🔒</span>
-    </div>
-  </div>
-</div>
-
-<!-- STRIPE SUCCESS -->
-<div id="modal-stripe-ok" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.9);z-index:301;align-items:center;justify-content:center;padding:1rem">
-  <div style="background:#fff;border-radius:16px;padding:32px;width:100%;max-width:320px;text-align:center;font-family:-apple-system,sans-serif">
-    <div style="font-size:56px;margin-bottom:12px">✅</div>
-    <div style="font-size:18px;font-weight:700;color:#1a1a1a;margin-bottom:8px">Pago completado</div>
-    <div style="font-size:13px;color:#888;margin-bottom:20px">Tu suscripción está activa. Recibirás un recibo en tu email.</div>
-    <button onclick="document.getElementById('modal-stripe-ok').style.display='none';document.getElementById('modal-stripe-bg').style.display='none'" style="width:100%;background:#635BFF;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:700;color:#fff;cursor:pointer;font-family:inherit">Volver a la app</button>
-    <div style="font-size:10px;color:#bbb;margin-top:10px">⚠️ Esto es una demo — no se ha cobrado nada</div>
-  </div>
-</div>
-
-<!-- NOTIFICACIONES -->
-<div id="modal-notif-bg" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:200;align-items:flex-start;justify-content:center;padding-top:70px">
-  <div style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:16px;width:100%;max-width:500px;max-height:70vh;overflow-y:auto;margin:0 1rem">
-    <div style="display:flex;justify-content:space-between;align-items:center;padding:16px;border-bottom:1px solid #2a2a2a;position:sticky;top:0;background:#1a1a1a">
-      <div style="font-size:15px;font-weight:700;color:#fff">Notificaciones</div>
-      <button onclick="document.getElementById('modal-notif-bg').style.display='none'" style="background:none;border:none;color:#888;font-size:20px;cursor:pointer">✕</button>
-    </div>
-    <div id="notif-list" style="padding:8px"></div>
-  </div>
-</div>
-
-<!-- ADMIN EDIT SOCIO -->
-<div id="modal-admin-socio-bg" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:200;align-items:center;justify-content:center;padding:1rem">
-  <div style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:16px;padding:20px;width:100%;max-width:340px;max-height:85vh;overflow-y:auto">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-      <div style="font-size:15px;font-weight:700;color:#fff" id="admin-edit-nombre"></div>
-      <button onclick="document.getElementById('modal-admin-socio-bg').style.display='none'" style="background:none;border:none;color:#888;font-size:20px;cursor:pointer">✕</button>
-    </div>
-    <input type="hidden" id="admin-edit-uid">
-    <div style="font-size:12px;color:#555;margin-bottom:8px">Disciplina principal</div>
-    <div id="admin-disc-opts" style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:14px"></div>
-    <div style="font-size:12px;color:#555;margin-bottom:8px">Disciplina secundaria</div>
-    <div id="admin-disc2-opts" style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:14px"></div>
-    <div id="admin-belt-section" style="display:none">
-      <div style="font-size:12px;color:#555;margin-bottom:8px">Cinturón BJJ</div>
-      <div id="admin-belt-opts" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px"></div>
-      <div style="font-size:12px;color:#555;margin-bottom:6px">Galones</div>
-      <div style="display:flex;gap:6px;margin-bottom:14px" id="admin-galon-opts"></div>
-    </div>
-    <button onclick="guardarPerfilSocio()" class="btn-main">Guardar cambios</button>
-  </div>
-</div>
-</body>
-</html>
