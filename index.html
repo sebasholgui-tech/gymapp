@@ -457,125 +457,6 @@ const SUPABASE_KEY = 'sb_publishable_SNsgBqoF6ZoN8JGMxtTOQw_rXV_sqYj';
 const { createClient } = supabase;
 const db = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// ============================================================
-// SEGURIDAD - Validación de inputs y sanitización
-// ============================================================
-function sanitize(str) {
-  if (!str) return '';
-  return String(str)
-    .replace(/&/g,'&amp;')
-    .replace(/</g,'&lt;')
-    .replace(/>/g,'&gt;')
-    .replace(/"/g,'&quot;')
-    .replace(/'/g,'&#x27;')
-    .trim()
-    .substring(0, 200); // Max length
-}
-
-function validateEmail(email) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-}
-
-function validatePassword(pass) {
-  return pass && pass.length >= 6 && pass.length <= 100;
-}
-
-// Rate limiting - max 5 attempts per 60 seconds
-const rateLimiter = {
-  attempts: {},
-  check(key, max=5, windowMs=60000) {
-    const now = Date.now();
-    if (!this.attempts[key]) this.attempts[key] = [];
-    this.attempts[key] = this.attempts[key].filter(t => now - t < windowMs);
-    if (this.attempts[key].length >= max) return false;
-    this.attempts[key].push(now);
-    return true;
-  }
-};
-
-// Secure invitation system using Supabase instead of localStorage
-async function generateSecureInvite() {
-  const token = Math.random().toString(36).substring(2,10) + Math.random().toString(36).substring(2,10);
-  const expires = new Date(Date.now() + 7*24*60*60*1000).toISOString(); // 7 days
-  await db.from('invitaciones').insert({token, expires_at: expires, usado: false});
-  return token;
-}
-
-async function validateInviteToken(token) {
-  if (!token) return false;
-  const {data} = await db.from('invitaciones')
-    .select('*').eq('token', token).eq('usado', false)
-    .gt('expires_at', new Date().toISOString()).single();
-  return !!data;
-}
-
-async function markInviteUsed(token) {
-  await db.from('invitaciones').update({usado: true}).eq('token', token);
-}
-
-
-let adminEditDisc = 'MMA';
-let adminEditDisc2 = '';
-let adminEditBelt = 'blanco';
-let adminEditGalones = 0;
-
-function editarSocioPerfil(uid, nombre, disc, disc2, belt, galones) {
-  adminEditDisc = disc || 'MMA';
-  adminEditDisc2 = disc2 || '';
-  adminEditBelt = belt || 'blanco';
-  adminEditGalones = galones || 0;
-  document.getElementById('admin-edit-uid').value = uid;
-  document.getElementById('admin-edit-nombre').textContent = nombre;
-  renderAdminDiscOpts();
-  renderAdminBeltOpts();
-  document.getElementById('modal-admin-socio-bg').style.display = 'flex';
-}
-
-function renderAdminDiscOpts() {
-  const hasBJJ = adminEditDisc==='BJJ'||adminEditDisc2==='BJJ';
-  document.getElementById('admin-belt-section').style.display = hasBJJ?'block':'none';
-
-  const el1 = document.getElementById('admin-disc-opts');
-  const el2 = document.getElementById('admin-disc2-opts');
-  el1.innerHTML = Object.entries(DISCIPLINAS).map(([key,d])=>`
-    <div onclick="adminEditDisc='${key}';renderAdminDiscOpts()" style="cursor:pointer;border:1.5px solid ${adminEditDisc===key?d.color:'#2a2a2a'};border-radius:8px;padding:6px;text-align:center;background:${adminEditDisc===key?d.color+'22':'#111'}">
-      <div style="font-size:10px;font-weight:700;color:${adminEditDisc===key?d.color:'#666'}">${d.label}</div>
-    </div>`).join('');
-  el2.innerHTML = '<div onclick="adminEditDisc2='';renderAdminDiscOpts()" style="cursor:pointer;border:1.5px solid '+(adminEditDisc2===''?'#e63946':'#2a2a2a')+';border-radius:8px;padding:6px;text-align:center;background:'+(adminEditDisc2===''?'#e6394622':'#111')+'">' +
-    '<div style="font-size:10px;font-weight:700;color:'+(adminEditDisc2===''?'#e63946':'#666')+'">Ninguna</div></div>' +
-    Object.entries(DISCIPLINAS).map(([key,d])=>`
-    <div onclick="adminEditDisc2='${key}';renderAdminDiscOpts()" style="cursor:pointer;border:1.5px solid ${adminEditDisc2===key?d.color:'#2a2a2a'};border-radius:8px;padding:6px;text-align:center;background:${adminEditDisc2===key?d.color+'22':'#111'}">
-      <div style="font-size:10px;font-weight:700;color:${adminEditDisc2===key?d.color:'#666'}">${d.label}</div>
-    </div>`).join('');
-}
-
-function renderAdminBeltOpts() {
-  const beltEl = document.getElementById('admin-belt-opts');
-  beltEl.innerHTML = Object.entries(CINTURONES).map(([key,b])=>`
-    <div onclick="adminEditBelt='${key}';renderAdminBeltOpts()" style="cursor:pointer;padding:3px;border-radius:4px;border:2px solid ${adminEditBelt===key?'#fff':'transparent'}">
-      ${beltHTML(key,0,'sm')}
-    </div>`).join('');
-  const galonEl = document.getElementById('admin-galon-opts');
-  galonEl.innerHTML = [0,1,2,3,4].map(g=>`
-    <div onclick="adminEditGalones=${g};renderAdminBeltOpts()" style="cursor:pointer;width:28px;height:28px;border-radius:50%;border:1.5px solid ${adminEditGalones===g?'#e63946':'#2a2a2a'};background:${adminEditGalones===g?'#2a0a0a':'#111'};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:${adminEditGalones===g?'#e63946':'#888'}">${g}</div>`).join('');
-}
-
-async function guardarPerfilSocio() {
-  const uid = document.getElementById('admin-edit-uid').value;
-  const updates = {
-    disciplina: adminEditDisc,
-    disciplina2: adminEditDisc2||null,
-  };
-  if (adminEditDisc==='BJJ'||adminEditDisc2==='BJJ') {
-    updates.cinturon_bjj = adminEditBelt;
-    updates.galones_bjj = adminEditGalones;
-  }
-  const {error} = await db.from('profiles').update(updates).eq('id', uid);
-  if (error) { toast('Error al guardar'); return; }
-  toast('Perfil actualizado');
-  document.getElementById('modal-admin-socio-bg').style.display = 'none';
-  loadAdmin();
-}
 
 db.auth.onAuthStateChange((event, session) => {
   if (event === 'PASSWORD_RECOVERY') {
@@ -840,6 +721,45 @@ function showSuccess(msg) {
   el.style.display = 'block';
 }
 
+async function doRecovery() {
+  const email = document.getElementById('recovery-email').value.trim();
+  if (!email) return showError('Introduce tu email');
+  const {error} = await db.auth.resetPasswordForEmail(email, {
+    redirectTo: 'https://gymapp-smoky-pi.vercel.app/reset'
+  });
+  if (error) return showError('Error al enviar el email');
+  document.getElementById('auth-error').style.display='none';
+  showSuccess('Te hemos enviado un enlace a tu email. Revisa tu bandeja de entrada.');
+}
+
+async function doLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const pass = document.getElementById('login-pass').value;
+  if (!email||!pass) return showError('Rellena todos los campos');
+  const {error} = await db.auth.signInWithPassword({email, password:pass});
+  if (error) return showError('Email o contraseña incorrectos');
+}
+
+async function doRegister() {
+  const nombre = document.getElementById('reg-name').value.trim();
+  const email = document.getElementById('reg-email').value.trim();
+  const pass = document.getElementById('reg-pass').value;
+  if (!nombre||!email||!pass) return showError('Rellena todos los campos');
+  if (pass.length < 6) return showError('La contraseña debe tener al menos 6 caracteres');
+  const invValid = localStorage.getItem('tmc_inv_valid');
+  const urlInv = new URLSearchParams(window.location.search).get('inv');
+  const savedInv = localStorage.getItem('tmc_inv_token');
+  if (!invValid && !(urlInv && urlInv === savedInv)) {
+    return showError('Necesitas un link de invitación del gimnasio para registrarte.');
+  }
+  const {data, error} = await db.auth.signUp({email, password:pass});
+  if (error) return showError(error.message);
+  if (data.user) {
+    await db.from('profiles').insert({id:data.user.id, nombre, rol:'socio'});
+    localStorage.removeItem('tmc_inv_valid');
+    toast('Cuenta creada. ¡Bienvenido!');
+  }
+}
 async function doRecovery() {
   const email = document.getElementById('recovery-email').value.trim();
   if (!email) return showError('Introduce tu email');
@@ -2079,13 +1999,13 @@ function loadPerfil() { loadPerfilScreen(); }
 
 
 async function generarInvitacion() {
-  const token = await generateSecureInvite();
+  const token = Math.random().toString(36).substring(2,10).toUpperCase();
   const link = window.location.origin + '?inv=' + token;
+  localStorage.setItem('tmc_inv_token', token);
   document.getElementById('inv-result').style.display = 'block';
   document.getElementById('inv-link').textContent = link;
-  toast('Link generado — válido 7 días');
+  toast('Link generado');
 }
-
 function copiarInvitacion() {
   const link = document.getElementById('inv-link').textContent;
   navigator.clipboard.writeText(link).then(()=>toast('Link copiado al portapapeles'));
