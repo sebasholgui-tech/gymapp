@@ -1207,6 +1207,7 @@ async function loadRanking() {
             ${prof2?.avatar_url?`<img src="${prof2.avatar_url}" style="width:100%;height:100%;object-fit:cover">`:ini2}
           </div>
           <div style="font-size:${pos===1?'12px':'10px'};font-weight:700;color:${isMe2?'#e63946':'#fff'};text-align:center;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${nom2}${isMe2?' (Tú)':''}</div>
+          ${(prof2?.disciplina==='BJJ'||prof2?.disciplina2==='BJJ')&&prof2?.cinturon_bjj?`<div style="margin-top:2px">${beltHTML(prof2.cinturon_bjj,prof2.galones_bjj||0,'sm')}</div>`:''}
           <div style="font-size:10px;color:${podBorder[i]};font-weight:700">${clases2}cls</div>
           <div style="background:${podBorder[i]};border-radius:6px 6px 0 0;width:100%;height:${podH[i]};display:flex;align-items:center;justify-content:center;font-size:${pos===1?'18px':'13px'};font-weight:800;color:#111">${pos}</div>
         </div>`;
@@ -1670,7 +1671,7 @@ async function verApuntados(claseId, claseNombre, color) {
     return;
   }
   const ids = reservas.map(r=>r.usuario_id);
-  const {data:profiles} = await db.from('profiles').select('id,nombre,disciplina,avatar_url').in('id', ids);
+  const {data:profiles} = await db.from('profiles').select('id,nombre,disciplina,disciplina2,cinturon_bjj,galones_bjj,avatar_url').in('id', ids);
 
   document.getElementById('modal-apuntados-list').innerHTML = profiles?.map((p,i)=>{
     const ini = p.nombre.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
@@ -1683,7 +1684,10 @@ async function verApuntados(claseId, claseNombre, color) {
       </div>
       <div style="flex:1">
         <div style="font-size:14px;font-weight:600;color:#fff">${p.nombre}</div>
-        <div style="font-size:11px;color:#555">${p.disciplina||'MMA'}</div>
+        <div style="display:flex;align-items:center;gap:6px;margin-top:2px;flex-wrap:wrap">
+          <span style="font-size:11px;color:#555">${p.disciplina||'MMA'}</span>
+          ${(p.disciplina==='BJJ'||p.disciplina2==='BJJ')&&p.cinturon_bjj?beltHTML(p.cinturon_bjj,p.galones_bjj||0,'sm'):''}
+        </div>
       </div>
       ${p.id===currentUser.id?'<span style="font-size:11px;background:#0a2a0a;color:#5dba5d;padding:2px 8px;border-radius:20px;font-weight:700">Tú</span>':''}
     </div>`;
